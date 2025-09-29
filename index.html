@@ -1,0 +1,456 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <!-- 「enchant」をローカルファイルへマッピング -->
+  <script type="importmap">
+  {
+    "imports": {
+      "enchant": "./enchant_dom.js"
+    }
+  }
+  </script>
+  <style> body { margin:0; background-color: #333; } </style>
+</head>
+<body>
+  <div id="enchant-stage"></div>
+  <script type="module">
+    import { Core, Scene, FrameOverlay, Sprite, Label, loadGoogleFont, TileMap, Rect, Circle } from 'enchant';
+
+    // --- fonts to load ---
+    const FONTS = [
+      ['Zen Kaku Gothic New', { weights:'100..900', italic:false }],
+      ['Dela Gothic One',     { weights:[400],      italic:false }],
+      ['Nico Moji',           { weights:[400],      italic:false }],
+      // Zen Maru Gothic は可変ではなく離散ウェイト（300/400/500/700/900）
+      ['Zen Maru Gothic',     { weights:[300,400,500,700,900], italic:false }],
+      ['Shippori Mincho',     { weights:'400..900', italic:false }],
+      ['Hachi Maru Pop',      { weights:[400],      italic:false }],
+      ['Rampart One',         { weights:[400],      italic:false }],
+      ['DotGothic16',         { weights:[400],      italic:false }],
+      ['Potta One',           { weights:[400],      italic:false }],
+    ];
+
+    Promise.all(FONTS.map(([fam,opt]) => loadGoogleFont(fam,opt).then(()=>console.log(`${fam} loaded`))))
+      .then(()=>{
+        // let y = 18;
+        // const mk=(text, css, color='#f5f7ff')=>{
+        //   const lb=new Label(text); lb.font=css; lb.color=color; lb.moveTo(20,y); scene.addChild(lb); y+=44;
+        // };
+
+        // mk('ぜんかくゴシック New（太さ700 / 28px）', '700 28px "Zen Kaku Gothic New", system-ui, sans-serif');
+        // mk('デラゴシック One（太さ400 / 32px）', '400 32px "Dela Gothic One", system-ui, sans-serif', '#ffeb3b');
+
+        // // Nico Moji（英字ほぼ無し → 日本語表示で確認）
+        // mk('ニコもじ（太さ400 / 32px）', '400 32px "Nico Moji", system-ui, sans-serif', '#00e5ff');
+
+        // // Zen Maru Gothic（離散ウェイト）
+        // mk('ぜんまるゴシック（太さ500 / 28px）', '500 28px "Zen Maru Gothic", system-ui, sans-serif', '#ffd2d2');
+
+        // mk('しっぽり明朝（太さ600 / 24px）', '600 24px "Shippori Mincho", serif', '#e0f7fa');
+        // mk('はちまるポップ（太さ400 / 28px）', '400 28px "Hachi Maru Pop", system-ui, sans-serif', '#fbcffb');
+        // mk('ランパート One（太さ400 / 30px）', '400 30px "Rampart One", system-ui, sans-serif', '#b2ff59');
+        // mk('ドットゴシック16（太さ400 / 24px）', '400 24px "DotGothic16", monospace', '#cfd8dc');
+        // mk('ポッタ One（太さ400 / 30px）', '400 30px "Potta One", system-ui, sans-serif', '#ffd54f');
+
+        // // textWidth sample（JPグリフで測定）
+        // const s=new Label('にほんごテキスト幅の計測'); s.font='700 20px "Zen Maru Gothic", system-ui, sans-serif'; s.moveTo(20,y+8); scene.addChild(s);
+        // const w=new Label('textWidth: '+s.textWidth+' px'); w.font='14px system-ui, sans-serif'; w.color='#ccc'; w.moveTo(20,y+38); scene.addChild(w);
+      })
+      .catch(e=>{ console.log('Font load error: '+(e&&e.message?e.message:e)); });
+
+    const core = new Core(768, 576);//480, 320
+    core.fps = 30;
+    core.preload([
+        './image/player.png',
+        './image/chara1.png',
+        './image/chara2.png',
+        './image/chara3.png',
+        './image/map1.png'
+    ]);
+
+    core.addEventListener('load', () => {
+
+      const createTitleScene = () => {
+        const scene = new Scene();
+        scene.backgroundColor = '#aaa';
+
+        // 16x16 タイル、20x15 マップ
+        // const map = new TileMap(16, 16, 30, 20);
+        // scene.addChild(map);
+
+        // // レイヤー追加
+        // const ground = map.addLayer('ground', { tileset: core.assets['./image/map1.png'], visible:true, collidable:true });
+        // let groundData = [
+        //   [8,8,24,24,24,24,24,24,24,24,24,24,24,24,24,24,24,24,24,24,24,24,24,24,24,24,24,24,24,8],
+        //   [8,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,8],
+        //   [8,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,8],
+        //   [8,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,8],
+        //   [8,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,8],
+        //   [8,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,8],
+        //   [8,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,8],
+        //   [8,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,8],
+        //   [8,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,8],
+        //   [8,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,8],
+        //   [8,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,8],
+        //   [8,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,8],
+        //   [8,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,8],
+        //   [8,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,8],
+        //   [8,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,8],
+        //   [8,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,8],
+        //   [8,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,8],
+        //   [8,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,8],
+        //   [8,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,8],
+        //   [24,24,24,24,24,24,24,24,24,24,24,24,24,24,24,24,24,24,24,24,24,24,24,24,24,24,24,24,24,24]
+        // ];
+        // const object = map.addLayer('object', { 
+        //   tileset: core.assets['./image/map1.png'], 
+        //   visible:true,
+        //   collidable:true,
+        //   // 例：100以上のタイルIDは固体とみなす
+        //   // solid: (idx) => idx >= 100
+        // });
+        // let objectData = [
+        //   [8,24,24,24,24,24,24,24,24,24,24,24,24,24,24,24,24,24,24,24,24,24,24,24,24,24,24,24,24,8],
+        //   [8,0,1,2,3,4,5,6,7,8,0,0,0,12,13,14,0,0,0,0,0,0,0,0,0,0,0,0,0,8],
+        //   [8,0,17,18,19,20,21,22,23,24,0,0,0,28,29,30,0,0,0,0,0,0,0,0,0,0,0,0,,8],
+        //   [8,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,8],
+        //   [8,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,8],
+        //   [8,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,8],
+        //   [8,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,8],
+        //   [8,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,8],
+        //   [8,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,8],
+        //   [8,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,8],
+        //   [8,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,8],
+        //   [8,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,8],
+        //   [8,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,8],
+        //   [8,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,8],
+        //   [8,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,8],
+        //   [8,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,8],
+        //   [8,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,8],
+        //   [8,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,8],
+        //   [8,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,8],
+        //   [24,24,24,24,24,24,24,24,24,24,24,24,24,24,24,24,24,24,24,24,24,24,24,24,24,24,24,24,24,24]
+        // ];
+        // map.setLayerData(0, groundData);  // rows x cols 配列
+        // map.setLayerData(1, objectData);
+
+        // 表示切替・透明度
+        // map.setLayerVisible(1, true);
+        // map.setLayerOpacity(1, 0.9);
+
+
+
+
+        //player(矢印キーで上下左右に移動)
+        const player = new Sprite(32, 32);
+        player.image = core.assets['./image/chara1.png'];
+        player.x = 136;
+        player.y = 200;
+        player.speed = 5;
+        player.animate([[0,0],[1,0],[2,0],[1,0]], 4, { loop:true, pingpong:false });
+        scene.addChild(player);
+
+        player.on('touchend', () => {
+          core.replaceScene(createGameScene());
+        });
+        
+        player.onenterframe = () => {
+
+          
+          if(core.input.left){
+            player.x -= player.speed;
+            // if(map.intersectEntity(player)){
+            //   player.x += player.speed;
+            // }
+          }
+          if(core.input.right){
+            player.x += player.speed;
+            // if(map.intersectEntity(player)){
+            //   player.x -= player.speed;
+            // }
+          }
+          if(core.input.up){
+            player.y -= player.speed;
+            // if(map.intersectEntity(player)){
+            //   player.y += player.speed;
+            // }
+          }
+          if(core.input.down){
+            player.y += player.speed;
+            // if(map.intersectEntity(player)){
+            //   player.y -= player.speed;
+            // }
+          }
+
+          // 単純な衝突チェック
+          // if (map.intersectEntity(player)) {
+          //   // 何かの衝突レイヤー上のタイルに当たっている
+          //   console.log('衝突しました');
+          // }
+
+          // どのタイルに当たったか詳細
+          // const info = map.intersectEntity(player, { details: true });
+          // // info = { hit: boolean, tiles: [{layer, x, y, index}, ...] }
+          // if (info.hit) {
+          //   info.tiles.forEach(t => {
+          //     // t.layer: レイヤー番号、t.x/t.y: タイル座標、t.index: タイルID
+          //     console.log(t);
+          //   });
+          // }
+
+          //レイヤーを指定して衝突チェック
+          // if (map.intersectEntity(player, { layers:[0,1] })) {
+          //   console.log('衝突しました1');
+          // }
+        };
+      
+        const label = new Label('HELLO ENCHANT DOM');
+        label.text = 'HELLO ENCHANT DOM!!';
+        label.color = '#fff';
+        label.font = 'bold 32px system-ui';
+        label.backgroundColor = 'rgba(0,0,0,0.5)';
+        label.width = core.width;
+        label.height = 32*1.2;
+        label.x = 0;
+        label.y = 150;
+        label.textAlign = 'center';
+        // label.ontouchend = () => { 
+        //   label.rotation -= 15;
+        // };
+        scene.addChild(label);
+
+          //左寄せで文字を重ねる
+          const label2 = new Label('HELLO ENCHANT DOM');
+          label2.text = 'HELLO ENC';
+          label2.color = '#ff0';
+          label2.font = 'bold 32px system-ui';
+          label2.height = 32*1.2;
+          label2.x = (label.width-label.textWidth)/2;
+          label2.y = 150;
+          label2.textAlign = 'left';
+          scene.addChild(label2);
+
+        let y = 18+44;
+        const mk=(text, css, color='#f5f7ff')=>{
+          const lb=new Label(text); lb.font=css; lb.color=color; lb.moveTo(20,y); scene.addChild(lb); y+=44;
+          lb.width = core.width;
+          lb.textAlign = 'center';
+        };
+
+        mk('ぜんかくゴシック New（太さ900 / 28px）', '900 28px "Zen Kaku Gothic New", system-ui, sans-serif');
+        mk('デラゴシック One（太さ400 / 32px）', '400 32px "Dela Gothic One", system-ui, sans-serif', '#ffeb3b');
+
+        // Nico Moji（英字ほぼ無し → 日本語表示で確認）
+        mk('ニコもじ', '400 32px "Nico Moji", system-ui, sans-serif', '#00e5ff');
+
+        // Zen Maru Gothic（離散ウェイト）
+        mk('ぜんまるゴシック（太さ500 / 28px）', '900 28px "Zen Maru Gothic", system-ui, sans-serif', '#ffd2d2');
+
+        mk('しっぽり明朝（太さ600 / 24px）', '400 24px "Shippori Mincho", serif', '#e0f7fa');
+        mk('はちまるポップ（太さ400 / 28px）', '400 28px "Hachi Maru Pop", system-ui, sans-serif', '#fbcffb');
+        mk('ランパート One（太さ400 / 30px）', '400 30px "Rampart One", system-ui, sans-serif', '#b2ff59');
+        mk('ドットゴシック16（太さ400 / 24px）', '400 24px "DotGothic16", monospace', '#cfd8dc');
+        mk('ポッタ One（太さ400 / 30px）', '400 30px "Potta One", system-ui, sans-serif', '#ffd54f');
+
+        // textWidth sample（JPグリフで測定）
+        const s=new Label('にほんごテキスト幅の計測'); s.font='700 20px "Zen Maru Gothic", system-ui, sans-serif'; s.moveTo(20,y+8); scene.addChild(s);
+        const w=new Label('textWidth: '+s.textWidth+' px'); w.font='14px system-ui, sans-serif'; w.color='#ccc'; w.moveTo(20,y+38); scene.addChild(w);
+        
+        
+        const sprite = new Sprite(32, 32);
+        sprite.image = core.assets['./image/chara3.png'];
+        sprite.x = 196;
+        sprite.y = 200;
+        //sprite.animate([1,2,1], 6, { loop: true, pingpong: true });
+        sprite.animate([[0,0],[1,1],[2,2],[1,1]], 4, { loop:true, pingpong:false });
+        scene.addChild(sprite);
+
+        sprite.ontouchstart = () => {
+          sprite.stopAnimation();
+        };
+        sprite.onenterframe = () => {
+          if(sprite.intersect(player)){
+            sprite.x += player.speed;
+            //player.x -= player.speed;
+          }
+        };
+
+        // const lbl2 = new Label('Score');
+        // await lbl2.useGoogleFont('Bangers'); // 内部で load → family セット → autosize
+        // scene.addChild(lbl2);
+
+        // 矩形
+        const block = new Rect(48, 16, {
+          fillColor: '#4caf50',
+          strokeColor: '#2e7d32',
+          strokeWidth: 2,
+          cornerRadius: 4
+        });
+        block.moveTo(220, 130);
+        scene.addChild(block);
+
+        // 円
+        const ball = new Circle(24, {
+          fillColor: '#ffc107',
+          strokeColor: '#ff9800',
+          strokeWidth: 2
+        });
+        ball.moveTo(120, 100);
+        scene.addChild(ball);
+
+        // ふつうの Sprite/Entity と同様に、tl や intersect が使えます
+        ball.tl.moveBy(100, 0, 30, 'easeOutQuad').moveBy(-100, 0, 30, 'easeInQuad').loop();
+
+        // 当たり判定（AABB）
+        ball.onenterframe = () => {
+          if (ball.intersect(block)) { console.log('ヒット'); }
+        };
+
+
+        scene.on('touchend', () => {
+          core.replaceScene(createGameScene());
+        });
+        return scene;
+      };
+
+      const createGameScene = () => {
+        const scene = new Scene();
+        scene.backgroundColor = '#888';
+
+        const frame = new FrameOverlay();     // ← サイズ指定なしでOK（Coreに自動フィット）
+        scene.addChild(frame);
+
+        // 角丸＋影のプリセット
+        frame.usePreset('bezel');           // border/角丸を変えても parts は自動追従
+
+        // parts のオフセットは「内側に正」
+        frame.putPart('screwTR', new Circle(8,{fillColor:'#ccc',strokeColor:'#888',strokeWidth:2}),
+              { anchor:'tr', offsetX:32, offsetY:8 });
+        frame.putPart('screwTL', new Circle(8,{fillColor:'#ccc',strokeColor:'#888',strokeWidth:2}),
+              { anchor:'tl', offsetX:8, offsetY:8 });
+        frame.putPart('screwBR', new Circle(8,{fillColor:'#ccc',strokeColor:'#888',strokeWidth:2}),
+              { anchor:'br', offsetX:32, offsetY:32 });
+        frame.putPart('screwBL', new Circle(8,{fillColor:'#ccc',strokeColor:'#888',strokeWidth:2}),
+              { anchor:'bl', offsetX:8, offsetY:32 });
+        // 9-slice 画像フレーム
+        // frame.useImageFrame('./frame.png', 24, 'stretch');
+
+        // 角の飾り（部品）を四隅に
+        // const screw = new Circle(8, { fillColor:'#ccc', strokeColor:'#888', strokeWidth:2 });
+        // frame.putPart('screwTL', new Circle(8,{fillColor:'#ccc',strokeColor:'#888',strokeWidth:2}), { anchor:'tl', offsetX:8, offsetY:8 });
+        // frame.putPart('screwTR', new Circle(8,{fillColor:'#ccc',strokeColor:'#888',strokeWidth:2}), { anchor:'tr', offsetX:-24, offsetY:8 });
+        // frame.putPart('screwBL', new Circle(8,{fillColor:'#ccc',strokeColor:'#888',strokeWidth:2}), { anchor:'bl', offsetX:8, offsetY:-24 });
+        // frame.putPart('screwBR', new Circle(8,{fillColor:'#ccc',strokeColor:'#888',strokeWidth:2}), { anchor:'br', offsetX:-24, offsetY:-24 });
+
+        // Core リサイズや preset 変更 → 自動でフレーム＆部品を再配置
+
+        
+        
+
+        const player = new Sprite(32, 32);
+        player.image = core.assets['./image/chara1.png'];
+        player.x = 136;
+        player.y = 200;
+      //player.moveTo(136, 200);
+    //   player.frames = [[0,0],[1,0],[2,0],[0,0],[1,0],[2,0],[0,1],[1,1],[2,1],[0,1],[1,1],[2,1],[0,2],[1,2],[2,2],[0,2],[1,2],[2,2]];
+    //   let t = 0;
+    //   scene.on('enterframe', ()=>{ player.frame = player.frames[t++ % player.frames.length]; });
+        player.onenterframe = () => { 
+        player.frame = player.age % 3;
+        player.speed =  5;
+        //player.x += 1;
+
+        if(core.input.left){
+          player.x -= player.speed;
+        }
+        if(core.input.right){
+          player.x += player.speed; 
+        }
+        if(core.input.up){
+          player.y -= player.speed; 
+        }
+        if(core.input.down){
+          player.y += player.speed; 
+        }
+      };
+      scene.addChild(player);
+
+      const enemy = new Sprite(32, 32);
+      enemy.image = core.assets['./image/chara2.png'];
+      enemy.x = 250;
+      enemy.y = 250;
+      scene.addChild(enemy);
+
+      scene.onenterframe = () => {
+        if (player.intersect(enemy)) {
+          player.x -= 1;
+          enemy.x += 1;
+          //console.log('intersect');
+        }
+        if(player.within(enemy, 40)){
+          console.log('within');
+        }
+        if(player.hitTest(100,100)){
+          console.log('hitTest');
+        }
+      };
+
+      // player.tl
+      //   .moveBy(200, 0, 30, 'easeOutQuad')
+      //   .moveBy(-200, 0, 30, 'easeInQuad')
+      //   .rotateTo(320, 60, 'easeInOutQuad')
+      //   .rotateTo(-720, 60, 'easeInOutQuad')
+      //   .moveBy(200, -100, 30, 'easeInCubic')
+      //   .moveBy(-200, 100, 30, 'easeOutCubic')
+      //   .moveBy(0, -200, 30, 'easeInOutCubic')
+      //   .moveBy(0, 200, 30, 'easeInOutQuad')
+      //   .loop();
+
+      // 1フレームごとに右へ
+    //   scene.on('enterframe', (e) => { player.moveBy(1, 0); });
+      // Timelineを使った移動
+      //player.tl.rotateTo(-90, 60).rotateTo(90, 60).rotateTo(0, 60);
+      //player.tl.moveBy(50, 20, 60).moveBy(-50, -20, 60).loop();
+      //player.tl.scaleTo(3, 3, 60).scaleTo(0.1, 0.1, 60).scaleTo(-1, 1, 60).scaleTo(-1, -1, 60).loop();//OK
+      //player.tl.fadeTo(0.3, 15).fadeTo(1, 15);//OK
+      //player.tl.moveTo(0, 200, 30).moveTo(236, 200, 30).moveTo(0, 20, 30);//OK
+        // player.tl
+        // .moveTo(50, 200, 30)
+        // .rotateTo(-360, 30)
+        // .fadeTo(0.3, 15)
+        // .delay(10)
+        // .fadeTo(1, 15)
+        // .moveBy(50, 0, 30)
+        // .rotateTo(360, 30)
+        // .fadeTo(0.3, 15)
+        // .delay(10)
+        // .fadeTo(1, 15).loop();
+
+        scene.on('touchend', () => {
+          core.pushScene(createPushedScene());
+        });
+
+        // frameを最前面へ（他のUI追加後）
+        // frame.bringToFront();
+
+        return scene;
+      };
+
+      const createPushedScene = () => {
+        const scene = new Scene();
+        scene.backgroundColor = 'rgba(0,0,0,0.2)';
+
+        scene.on('touchend', () => {
+          core.popScene();
+        });
+        return scene;
+      };
+
+      core.replaceScene(createTitleScene());
+    });
+
+    core.start();
+  </script>
+</body>
+</html>
