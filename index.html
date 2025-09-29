@@ -2,20 +2,20 @@
 <html>
 <head>
   <meta charset="utf-8" />
-  <!-- 「enchant」をローカルファイルへマッピング -->
+  <!-- 「managic」をローカルファイルへマッピング -->
   <script type="importmap">
   {
     "imports": {
-      "enchant": "./enchant_dom.js"
+      "managic": "./managic_dom.js"
     }
   }
   </script>
   <style> body { margin:0; background-color: #333; } </style>
 </head>
 <body>
-  <div id="enchant-stage"></div>
+  <div id="managic-stage"></div>
   <script type="module">
-    import { Core, Scene, FrameOverlay, Sprite, Label, loadGoogleFont, TileMap, Rect, Circle } from 'enchant';
+    import { Core, Scene, FrameOverlay, Sprite, Label, loadGoogleFont, TileMap, Rect, Circle } from 'managic';
 
     // --- google fontをプリロード ---
     const FONTS = [
