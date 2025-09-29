@@ -1635,7 +1635,6 @@ Label.styles = {
 };
 
 // ---------- Google Fonts loader ----------
-// NOTE: 日本語グリフを確実にロードするため、第二引数(text)にJPサンプルを渡す
 export function loadGoogleFont(
   family,
   { weights=[400], italic=false, display='swap', sampleText='漢かなカナ_日本語Sample123' }={}
