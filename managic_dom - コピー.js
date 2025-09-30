@@ -938,106 +938,29 @@ export class Core extends EventTarget {
   stop(){ this.ready=false; this.running=false; }
 
   // Asset loading (basic)
-
-    // ---- Runtime asset loading (non-blocking prefetch) ----
-    async loadAssets(assets, { emitProgress = true } = {}) {
-      if (assets && !Array.isArray(assets)) assets = [assets];
-      assets = (assets || []).filter(Boolean);
-      if (!assets.length) return {};
-  
-      const total = assets.length;
-      let loaded = 0;
-      const onProgress = (path)=> {
-        if (!emitProgress) return;
-        const ev = new Event(Event.PROGRESS);
-        ev.phase = 'runtime';
-        ev.loaded = loaded;
-        ev.total = total;
-        ev.path = path;
-        // 進行中のシーンに通知
-        if (this.currentScene) this.currentScene.dispatchEvent(ev);
-        // Coreにも流す
-        this.dispatchEvent(ev);
-      };
-  
-      const results = {};
-      for (const path of assets) {
-        // 既に読み込み済みならスキップ
-        if (this.assets[path]) { results[path] = this.assets[path]; loaded++; onProgress(path); continue; }
-        results[path] = await this._loadOne(path); // 1件読み込み
-        loaded++; onProgress(path);
-      }
-      return results;
-    }
-  
-    async ensureAssets(assets, opts) {
-      // 未ロードのみ読み込む
-      if (assets && !Array.isArray(assets)) assets = [assets];
-      const missing = (assets || []).filter(p => !this.assets[p]);
-      return this.loadAssets(missing, opts);
-    }
-  
-    prefetch(assets, opts) { return this.loadAssets(assets, opts); }
-  
-    getAsset(path){ return this.assets[path]; }
-    hasAsset(path){ return !!this.assets[path]; }
-    unloadAssets(paths){
-      if (paths && !Array.isArray(paths)) paths = [paths];
-      (paths || []).forEach(p => { delete this.assets[p]; });
-    }
-  
-  //////
-
-  // preload
   preload(...assets){
     if (assets.length===1 && Array.isArray(assets[0])) assets = assets[0];
     this._preloadList.push(...assets);
     return this;
   }
-
-  //---- _loadOne ----
-  async _loadOne(path){
-    const ext = (path.split('.').pop()||'').toLowerCase();
-    if (['png','jpg','jpeg','gif','bmp','webp','svg'].includes(ext)){
-      const img = await new Promise((res, rej)=>{
-        const im = new Image();
-        im.onload = ()=> res(im);
-        im.onerror = (e)=> rej(e || new Error('image load error: '+path));
-        im.src = path;
-      });
-      // 可能なら描画前デコード（対応ブラウザのみ）
-      if (img.decode) { try { await img.decode(); } catch(_){} }
-      this.assets[path] = img; return img;
-    } else if (['mp3','aac','m4a','wav','ogg','flac','webm'].includes(ext)){
-      // 簡易: HTMLAudio（即時にassetsへ）
-      const audio = new Audio(); audio.src = path;
-      this.assets[path] = audio; return audio;
-    } else {
-      const txt = await fetch(path).then(r=> r.ok? r.text(): Promise.reject(new Error(r.status+': '+path)));
-      this.assets[path] = txt; return txt;
-    }
-  }
-
-  //////
-
-  //---- _doPreload ----
   async _doPreload(){
     const total = this._preloadList.length; let loaded=0;
-    const onProgress = ()=>{
-      const ev = new Event(Event.PROGRESS);
-      ev.phase = 'preload';
-      ev.loaded = loaded; ev.total = total;
-      if (this.currentScene) this.currentScene.dispatchEvent(ev);
-      this.dispatchEvent(ev);
-    };
+    const onProgress = ()=>{ const ev = new Event(Event.PROGRESS); ev.loaded=loaded; ev.total=total; if (this.currentScene) this.currentScene.dispatchEvent(ev); };
     onProgress();
     for (const path of this._preloadList){
-      await this._loadOne(path);
-      loaded++; onProgress();
+      const ext = (path.split('.').pop()||'').toLowerCase();
+      if (['png','jpg','jpeg','gif','bmp','webp','svg'].includes(ext)){
+        await new Promise((res,rej)=>{ const img=new Image(); img.onload=()=>{ this.assets[path]=img; loaded++; onProgress(); res(); }; img.onerror=rej; img.src=path; });
+      } else if (['mp3','aac','m4a','wav','ogg','flac','webm'].includes(ext)){
+        // simple Audio element
+        const audio = new Audio(); audio.src = path; this.assets[path]=audio; loaded++; onProgress();
+      } else {
+        const txt = await fetch(path).then(r=> r.ok? r.text(): Promise.reject(new Error(r.status+': '+path)));
+        this.assets[path]=txt; loaded++; onProgress();
+      }
     }
     this._preloadList = [];
   }
-
   _createLoadingScene(){
     const s = new Scene(); s.backgroundColor = '#000';
     const lbl = new Label('Loading...');

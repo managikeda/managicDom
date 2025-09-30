@@ -3,19 +3,21 @@
 <head>
   <meta charset="utf-8" />
   <!-- 「managic」をローカルファイルへマッピング -->
-  <script type="importmap">
+  <!-- <script type="importmap">
   {
     "imports": {
       "managic": "./managic_dom.js"
     }
   }
-  </script>
+  </script> -->
   <style> body { margin:0; background-color: #333; } </style>
 </head>
 <body>
   <div id="managic-stage"></div>
   <script type="module">
-    import { Core, Scene, FrameOverlay, Sprite, Label, loadGoogleFont, TileMap, Rect, Circle } from 'managic';
+    // import { Core, Scene, FrameOverlay, Sprite, Label, loadGoogleFont, TileMap, Rect, Circle } from 'managic';
+    import { Core, Scene, FrameOverlay, Sprite, Label, loadGoogleFont, TileMap, Rect, Circle } from './managic_dom.js';
+    import { FrameWindow, UIButton } from './managic_ui.js';
 
     // --- google fontをプリロード ---
     const FONTS = [
@@ -33,29 +35,7 @@
 
     Promise.all(FONTS.map(([fam,opt]) => loadGoogleFont(fam,opt).then(()=>console.log(`${fam} loaded`))))
       .then(()=>{
-        // let y = 18;
-        // const mk=(text, css, color='#f5f7ff')=>{
-        //   const lb=new Label(text); lb.font=css; lb.color=color; lb.moveTo(20,y); scene.addChild(lb); y+=44;
-        // };
-
-        // mk('ぜんかくゴシック New（太さ700 / 28px）', '700 28px "Zen Kaku Gothic New", system-ui, sans-serif');
-        // mk('デラゴシック One（太さ400 / 32px）', '400 32px "Dela Gothic One", system-ui, sans-serif', '#ffeb3b');
-
-        // // Nico Moji（英字ほぼ無し → 日本語表示で確認）
-        // mk('ニコもじ（太さ400 / 32px）', '400 32px "Nico Moji", system-ui, sans-serif', '#00e5ff');
-
-        // // Zen Maru Gothic（離散ウェイト）
-        // mk('ぜんまるゴシック（太さ500 / 28px）', '500 28px "Zen Maru Gothic", system-ui, sans-serif', '#ffd2d2');
-
-        // mk('しっぽり明朝（太さ600 / 24px）', '600 24px "Shippori Mincho", serif', '#e0f7fa');
-        // mk('はちまるポップ（太さ400 / 28px）', '400 28px "Hachi Maru Pop", system-ui, sans-serif', '#fbcffb');
-        // mk('ランパート One（太さ400 / 30px）', '400 30px "Rampart One", system-ui, sans-serif', '#b2ff59');
-        // mk('ドットゴシック16（太さ400 / 24px）', '400 24px "DotGothic16", monospace', '#cfd8dc');
-        // mk('ポッタ One（太さ400 / 30px）', '400 30px "Potta One", system-ui, sans-serif', '#ffd54f');
-
-        // // textWidth sample（JPグリフで測定）
-        // const s=new Label('にほんごテキスト幅の計測'); s.font='700 20px "Zen Maru Gothic", system-ui, sans-serif'; s.moveTo(20,y+8); scene.addChild(s);
-        // const w=new Label('textWidth: '+s.textWidth+' px'); w.font='14px system-ui, sans-serif'; w.color='#ccc'; w.moveTo(20,y+38); scene.addChild(w);
+        console.log('All fonts loaded');
       })
       .catch(e=>{ console.log('Font load error: '+(e&&e.message?e.message:e)); });
 
@@ -64,7 +44,6 @@
     core.preload([
         './image/player.png',
         './image/chara1.png',
-        './image/chara2.png',
         './image/chara3.png',
         './image/map1.png'
     ]);
@@ -135,11 +114,37 @@
         // map.setLayerData(0, groundData);  // rows x cols 配列
         // map.setLayerData(1, objectData);
 
-        // 表示切替・透明度
+        // // 表示切替・透明度
         // map.setLayerVisible(1, true);
         // map.setLayerOpacity(1, 0.9);
 
+        // 1) FrameWindow の利用
+        const win = new FrameWindow(280, 160, 'glass');   // プリセット: 'panel' | 'dark' | 'glass' | 'accent'
+        win.x = 24; win.y = 224;
+        win.padding = { top:16, right:16, bottom:16, left:16 };
+        scene.addChild(win);
 
+        // 中身を入れる（content コンテナ内に配置される）
+        const title = new Label('FrameWindow / パネル');
+        title.font = 'bold 18px system-ui, sans-serif';
+        win.content.addChild(title);
+
+        const note = new Label('プリセット/パディング/サイズ変更が可能です。');
+        note.y = 28;
+        win.content.addChild(note);
+
+        //サイズを変更してみる
+        // win.setSize(320, 180).usePreset('accent');
+
+        // 2) UIButton の利用（画像なし＝CSSテーマボタン）
+        const btn1 = new UIButton(160, 40, { text: 'OK' });
+        btn1.x = 360; btn1.y = 40;
+        btn1.ontouchend = () => { console.log('OK clicked'); };
+        //btn1.on('click', ()=> { console.log('OK clicked'); });
+        btn1.onenterframe = () => {
+          btn1.x += 1;
+        }
+        scene.addChild(btn1);
 
 
         //player(矢印キーで上下左右に移動)
@@ -232,31 +237,37 @@
           scene.addChild(label2);
 
         let y = 18+44;
-        const mk=(text, css, color='#f5f7ff')=>{
-          const lb=new Label(text); lb.font=css; lb.color=color; lb.moveTo(20,y); scene.addChild(lb); y+=44;
-          lb.width = core.width;
-          lb.textAlign = 'center';
-        };
+        // const mk=(text, css, color='#f5f7ff')=>{
+        //   const lb=new Label(text); lb.font=css; lb.color=color; lb.moveTo(20,y); scene.addChild(lb); y+=44;
+        //   lb.width = core.width;
+        //   lb.textAlign = 'center';
+        // };
 
-        mk('ぜんかくゴシック New（太さ900 / 28px）', '900 28px "Zen Kaku Gothic New", system-ui, sans-serif');
-        mk('デラゴシック One（太さ400 / 32px）', '400 32px "Dela Gothic One", system-ui, sans-serif', '#ffeb3b');
+        // mk('ぜんかくゴシック New（太さ900 / 28px）', '900 28px "Zen Kaku Gothic New", system-ui, sans-serif');
+        // mk('デラゴシック One（太さ400 / 32px）', '400 32px "Dela Gothic One", system-ui, sans-serif', '#ffeb3b');
 
-        // Nico Moji（英字ほぼ無し → 日本語表示で確認）
-        mk('ニコもじ', '400 32px "Nico Moji", system-ui, sans-serif', '#00e5ff');
+        // // Nico Moji（英字ほぼ無し → 日本語表示で確認）
+        // mk('ニコもじ', '400 32px "Nico Moji", system-ui, sans-serif', '#00e5ff');
 
-        // Zen Maru Gothic（離散ウェイト）
-        mk('ぜんまるゴシック（太さ500 / 28px）', '900 28px "Zen Maru Gothic", system-ui, sans-serif', '#ffd2d2');
+        // // Zen Maru Gothic（離散ウェイト）
+        // mk('ぜんまるゴシック（太さ500 / 28px）', '900 28px "Zen Maru Gothic", system-ui, sans-serif', '#ffd2d2');
 
-        mk('しっぽり明朝（太さ600 / 24px）', '400 24px "Shippori Mincho", serif', '#e0f7fa');
-        mk('はちまるポップ（太さ400 / 28px）', '400 28px "Hachi Maru Pop", system-ui, sans-serif', '#fbcffb');
-        mk('ランパート One（太さ400 / 30px）', '400 30px "Rampart One", system-ui, sans-serif', '#b2ff59');
-        mk('ドットゴシック16（太さ400 / 24px）', '400 24px "DotGothic16", monospace', '#cfd8dc');
-        mk('ポッタ One（太さ400 / 30px）', '400 30px "Potta One", system-ui, sans-serif', '#ffd54f');
+        // mk('しっぽり明朝（太さ600 / 24px）', '400 24px "Shippori Mincho", serif', '#e0f7fa');
+        // mk('はちまるポップ（太さ400 / 28px）', '400 28px "Hachi Maru Pop", system-ui, sans-serif', '#fbcffb');
+        // mk('ランパート One（太さ400 / 30px）', '400 30px "Rampart One", system-ui, sans-serif', '#b2ff59');
+        // mk('ドットゴシック16（太さ400 / 24px）', '400 24px "DotGothic16", monospace', '#cfd8dc');
+        // mk('ポッタ One（太さ400 / 30px）', '400 30px "Potta One", system-ui, sans-serif', '#ffd54f');
 
         // textWidth sample（JPグリフで測定）
-        const s=new Label('にほんごテキスト幅の計測'); s.font='700 20px "Zen Maru Gothic", system-ui, sans-serif'; s.moveTo(20,y+8); scene.addChild(s);
-        const w=new Label('textWidth: '+s.textWidth+' px'); w.font='14px system-ui, sans-serif'; w.color='#ccc'; w.moveTo(20,y+38); scene.addChild(w);
-        
+        const s=new Label('にほんごテキスト幅の計測'); s.font='600 40px "Zen Maru Gothic", system-ui, sans-serif'; s.moveTo(20,y+8); scene.addChild(s);
+        const w=new Label('textWidth: '+s.textWidth+' px'); w.font='14px system-ui, sans-serif'; w.color='#ccc'; w.moveTo(20,y+58); scene.addChild(w);
+        // s.fontSize = 40;
+        // s.fontWeight = 900;
+        s.ontouchstart = () => {
+          s.font = '400 40px "Hachi Maru Pop", system-ui, sans-serif';
+          s.color = '#ffeb3b';
+        };
+      
         
         const sprite = new Sprite(32, 32);
         sprite.image = core.assets['./image/chara3.png'];
@@ -309,7 +320,12 @@
 
 
         scene.on('touchend', () => {
-          core.replaceScene(createGameScene());
+          //次のステージで使う画像を事前に読み込む
+          core.prefetch(['./image/chara2.png', './image/chara5.png']).then(()=>{
+            console.log('prefetch done');
+            core.replaceScene(createGameScene());
+          });
+          // core.replaceScene(createGameScene());
         });
         return scene;
       };
@@ -382,6 +398,19 @@
       enemy.y = 250;
       scene.addChild(enemy);
 
+      const enemy2 = new Sprite(32, 32);
+      enemy2.image = core.assets['./image/chara5.png'];
+      enemy2.x = 250;
+      enemy2.y = 250;
+      scene.addChild(enemy2);
+
+      enemy2.ontouchend = () => {
+        core.prefetch(['./image/chara6.png']).then(()=>{
+          console.log('prefetch done');
+          enemy2.image = core.assets['./image/chara6.png'];
+        });
+      };
+
       scene.onenterframe = () => {
         if (player.intersect(enemy)) {
           player.x -= 1;
@@ -396,16 +425,16 @@
         }
       };
 
-      // player.tl
-      //   .moveBy(200, 0, 30, 'easeOutQuad')
-      //   .moveBy(-200, 0, 30, 'easeInQuad')
-      //   .rotateTo(320, 60, 'easeInOutQuad')
-      //   .rotateTo(-720, 60, 'easeInOutQuad')
-      //   .moveBy(200, -100, 30, 'easeInCubic')
-      //   .moveBy(-200, 100, 30, 'easeOutCubic')
-      //   .moveBy(0, -200, 30, 'easeInOutCubic')
-      //   .moveBy(0, 200, 30, 'easeInOutQuad')
-      //   .loop();
+      player.tl
+        .moveBy(200, 0, 30, 'easeOutQuad')
+        .moveBy(-200, 0, 30, 'easeInQuad')
+        .rotateTo(320, 60, 'easeInOutQuad')
+        .rotateTo(-720, 60, 'easeInOutQuad')
+        .moveBy(200, -100, 30, 'easeInCubic')
+        .moveBy(-200, 100, 30, 'easeOutCubic')
+        .moveBy(0, -200, 30, 'easeInOutCubic')
+        .moveBy(0, 200, 30, 'easeInOutQuad')
+        .loop();
 
       // 1フレームごとに右へ
     //   scene.on('enterframe', (e) => { player.moveBy(1, 0); });
