@@ -244,228 +244,228 @@ export class Entity extends Node {
   static intersectAABB(a,b){ return Entity.prototype.intersect.call(a,b); }
 }
 
-// =============================
-// FrameOverlay: 最前面フレーム（borderはそのまま表示／partsはfitToCoreで自動再配置）
-// =============================
-export class FrameOverlay extends Group {
-  constructor(){
-    super();
-    const st = this._element.style;
-    this._element.classList.add('enchant-frame-overlay');
-    st.pointerEvents = 'none';
-    st.zIndex = '9999';
-    st.left = '0px';
-    st.top  = '0px';
-    st.boxSizing = 'border-box';   // 外寸=width/height
+// // =============================
+// // FrameOverlay: 最前面フレーム（borderはそのまま表示／partsはfitToCoreで自動再配置）
+// // =============================
+// export class FrameOverlay extends Group {
+//   constructor(){
+//     super();
+//     const st = this._element.style;
+//     this._element.classList.add('enchant-frame-overlay');
+//     st.pointerEvents = 'none';
+//     st.zIndex = '9999';
+//     st.left = '0px';
+//     st.top  = '0px';
+//     st.boxSizing = 'border-box';   // 外寸=width/height
 
-    this._autoFit = true;
-    this._parts = new Map();       // name -> { node, anchor, offsetX, offsetY, inside, followRadius }
+//     this._autoFit = true;
+//     this._parts = new Map();       // name -> { node, anchor, offsetX, offsetY, inside, followRadius }
 
-    // シーンに入ったら：DOM上は stage 直下（最前面）へ移動し、初回フィット
-    this.on(Event.ADDED_TO_SCENE, ()=>{
-      const core = Core.instance;
-      if (core && core._stage) core._stage.appendChild(this._element);
-      if (this._autoFit) this.fitToCore();
-    });
+//     // シーンに入ったら：DOM上は stage 直下（最前面）へ移動し、初回フィット
+//     this.on(Event.ADDED_TO_SCENE, ()=>{
+//       const core = Core.instance;
+//       if (core && core._stage) core._stage.appendChild(this._element);
+//       if (this._autoFit) this.fitToCore();
+//     });
 
-    // Coreリサイズに追従
-    const core = Core.instance;
-    if (core){
-      core.on(Event.CORE_RESIZE, (e)=>{
-        if (this._autoFit) this.fitToCore(e.width, e.height);
-      });
-    }
-  }
+//     // Coreリサイズに追従
+//     const core = Core.instance;
+//     if (core){
+//       core.on(Event.CORE_RESIZE, (e)=>{
+//         if (this._autoFit) this.fitToCore(e.width, e.height);
+//       });
+//     }
+//   }
 
-  // ---- 公開API -------------------------------------------------
+//   // ---- 公開API -------------------------------------------------
 
-  /**
-   * Coreの外寸にフィット（box-sizing:border-box なので border込みで一致）
-   * borderやborder-radiusが変わってもpartsを再レイアウト
-   */
-  fitToCore(w, h){
-    const core = Core.instance;
-    const W = (w!=null ? w : (core ? core.width  : this.width  || 0))|0;
-    const H = (h!=null ? h : (core ? core.height : this.height || 0))|0;
-    this.width  = W;
-    this.height = H;
-    this._layoutParts();
-    return this;
-  }
+//   /**
+//    * Coreの外寸にフィット（box-sizing:border-box なので border込みで一致）
+//    * borderやborder-radiusが変わってもpartsを再レイアウト
+//    */
+//   fitToCore(w, h){
+//     const core = Core.instance;
+//     const W = (w!=null ? w : (core ? core.width  : this.width  || 0))|0;
+//     const H = (h!=null ? h : (core ? core.height : this.height || 0))|0;
+//     this.width  = W;
+//     this.height = H;
+//     this._layoutParts();
+//     return this;
+//   }
 
-  /**
-   * 見た目プリセット
-   * @param {'simple'|'arcade'|'bezel'|'rounded'|'shadow-only'} name
-   * @param {object} opts 例: { border, borderRadius, boxShadow, background }
-   */
-  usePreset(name='simple', opts={}){
-    const st = this._element.style;
-    // reset
-    st.background   = 'transparent';
-    st.border       = '0';
-    //st.boxShadow    = 'inset 0 0 8px #111, 5px 5px 5px 15px #333';//'none';
-    st.boxShadow    = 'inset 0 0 8px #111, 5px 5px 5px 15px '+getComputedStyle(document.body).backgroundColor;//'none';
-    //getComputedStyle(document.body).backgroundColor
-    st.borderImage  = 'none';
-    st.borderRadius = '';
+//   /**
+//    * 見た目プリセット
+//    * @param {'simple'|'arcade'|'bezel'|'rounded'|'shadow-only'} name
+//    * @param {object} opts 例: { border, borderRadius, boxShadow, background }
+//    */
+//   usePreset(name='simple', opts={}){
+//     const st = this._element.style;
+//     // reset
+//     st.background   = 'transparent';
+//     st.border       = '0';
+//     //st.boxShadow    = 'inset 0 0 8px #111, 5px 5px 5px 15px #333';//'none';
+//     st.boxShadow    = 'inset 0 0 8px #111, 5px 5px 5px 15px '+getComputedStyle(document.body).backgroundColor;//'none';
+//     //getComputedStyle(document.body).backgroundColor
+//     st.borderImage  = 'none';
+//     st.borderRadius = '';
 
-    switch(name){
-      case 'arcade':
-        st.border = '12px solid #111';
-        //st.boxShadow = 'inset 0 0 20px rgba(255,255,255,.06), 0 0 12px rgba(0,0,0,.6)';
-        //st.boxShadow = 'inset 0 0 8px #111, 5px 5px 5px 15px #333';
-        st.borderRadius = '10px';
-        break;
-      case 'bezel':
-        st.border = '18px solid rgb(127, 90, 172)';
-        //st.boxShadow = 'inset 0 6px 12px rgba(56, 23, 23, 0.08), inset 0 -6px 12px rgba(0,0,0,.3)';
-        st.borderRadius = '8px';
-        break;
-      case 'rounded':
-        st.border = '8px solid #222';
-        //st.borderRadius = '20px';
-        st.boxShadow = '0 4px 16px rgba(0,0,0,.4)';
-        break;
-      case 'shadow-only':
-        st.boxShadow = '0 8px 24px rgba(0,0,0,.5), inset 0 0 0 2px rgba(255,255,255,.05)';
-        break;
-      default: // simple
-        st.border = '6px solid #000';
-        //st.boxShadow = '0 6px 18px rgba(0,0,0,.45)';
-        st.borderRadius = '6px';
-    }
-    // 任意上書き
-    if (opts.border)        st.border = opts.border;
-    if (opts.borderRadius!=null) st.borderRadius = (opts.borderRadius|0)+'px';
-    if (opts.boxShadow)     st.boxShadow = opts.boxShadow;
-    if (opts.background)    st.background = opts.background;
+//     switch(name){
+//       case 'arcade':
+//         st.border = '12px solid #111';
+//         //st.boxShadow = 'inset 0 0 20px rgba(255,255,255,.06), 0 0 12px rgba(0,0,0,.6)';
+//         //st.boxShadow = 'inset 0 0 8px #111, 5px 5px 5px 15px #333';
+//         st.borderRadius = '10px';
+//         break;
+//       case 'bezel':
+//         st.border = '18px solid rgb(127, 90, 172)';
+//         //st.boxShadow = 'inset 0 6px 12px rgba(56, 23, 23, 0.08), inset 0 -6px 12px rgba(0,0,0,.3)';
+//         st.borderRadius = '8px';
+//         break;
+//       case 'rounded':
+//         st.border = '8px solid #222';
+//         //st.borderRadius = '20px';
+//         st.boxShadow = '0 4px 16px rgba(0,0,0,.4)';
+//         break;
+//       case 'shadow-only':
+//         st.boxShadow = '0 8px 24px rgba(0,0,0,.5), inset 0 0 0 2px rgba(255,255,255,.05)';
+//         break;
+//       default: // simple
+//         st.border = '6px solid #000';
+//         //st.boxShadow = '0 6px 18px rgba(0,0,0,.45)';
+//         st.borderRadius = '6px';
+//     }
+//     // 任意上書き
+//     if (opts.border)        st.border = opts.border;
+//     if (opts.borderRadius!=null) st.borderRadius = (opts.borderRadius|0)+'px';
+//     if (opts.boxShadow)     st.boxShadow = opts.boxShadow;
+//     if (opts.background)    st.background = opts.background;
 
-    // 見た目変更後もCoreに外寸を合わせつつparts再レイアウト
-    if (this._autoFit) this.fitToCore();
-    return this;
-  }
+//     // 見た目変更後もCoreに外寸を合わせつつparts再レイアウト
+//     if (this._autoFit) this.fitToCore();
+//     return this;
+//   }
 
-  /**
-   * 9-slice画像フレーム
-   * @param {string} url
-   * @param {number} slice 例: 24
-   * @param {'stretch'|'repeat'|'round'} repeat
-   */
-  useImageFrame(url, slice=24, repeat='stretch'){
-    const st = this._element.style;
-    st.borderWidth     = `${slice|0}px`;
-    st.borderStyle     = 'solid';
-    st.borderImageSource = `url("${url}")`;
-    st.borderImageSlice  = String(slice|0);
-    st.borderImageRepeat = repeat;
-    if (this._autoFit) this.fitToCore();
-    return this;
-  }
+//   /**
+//    * 9-slice画像フレーム
+//    * @param {string} url
+//    * @param {number} slice 例: 24
+//    * @param {'stretch'|'repeat'|'round'} repeat
+//    */
+//   useImageFrame(url, slice=24, repeat='stretch'){
+//     const st = this._element.style;
+//     st.borderWidth     = `${slice|0}px`;
+//     st.borderStyle     = 'solid';
+//     st.borderImageSource = `url("${url}")`;
+//     st.borderImageSlice  = String(slice|0);
+//     st.borderImageRepeat = repeat;
+//     if (this._autoFit) this.fitToCore();
+//     return this;
+//   }
 
-  /**
-   * 部品を配置（fitToCore時に常に自動再配置）
-   * @param {string} name
-   * @param {Node} node
-   * @param {object} opt
-   *   - anchor: 'tl'|'tr'|'bl'|'br'|'t'|'b'|'l'|'r'|'center'
-   *   - offsetX/offsetY: 数値。**内側方向を正**とする（outside時は通常のXY）
-   *   - inside: true=内側（既定） / false=外側
-   *   - followRadius: true=角丸半径ぶん内側に寄せる（既定）
-   */
-  putPart(name, node, opt={}){
-    const meta = {
-      node,
-      anchor: opt.anchor || 'tl',
-      offsetX: opt.offsetX|0 || 0,
-      offsetY: opt.offsetY|0 || 0,
-      inside: opt.inside !== false,
-      followRadius: opt.followRadius !== false
-    };
-    this._parts.set(name, meta);
-    node._element.style.pointerEvents = 'none';
-    this.addChild(node);
-    this._layoutParts(); // 即1回配置
-    return node;
-  }
+//   /**
+//    * 部品を配置（fitToCore時に常に自動再配置）
+//    * @param {string} name
+//    * @param {Node} node
+//    * @param {object} opt
+//    *   - anchor: 'tl'|'tr'|'bl'|'br'|'t'|'b'|'l'|'r'|'center'
+//    *   - offsetX/offsetY: 数値。**内側方向を正**とする（outside時は通常のXY）
+//    *   - inside: true=内側（既定） / false=外側
+//    *   - followRadius: true=角丸半径ぶん内側に寄せる（既定）
+//    */
+//   putPart(name, node, opt={}){
+//     const meta = {
+//       node,
+//       anchor: opt.anchor || 'tl',
+//       offsetX: opt.offsetX|0 || 0,
+//       offsetY: opt.offsetY|0 || 0,
+//       inside: opt.inside !== false,
+//       followRadius: opt.followRadius !== false
+//     };
+//     this._parts.set(name, meta);
+//     node._element.style.pointerEvents = 'none';
+//     this.addChild(node);
+//     this._layoutParts(); // 即1回配置
+//     return node;
+//   }
 
-  /** 最前面へ（他UIを後から足した後などに明示呼び出し） */
-  bringToFront(){
-    const core = Core.instance;
-    if (core && core._stage){
-      core._stage.appendChild(this._element);
-    }
-  }
+//   /** 最前面へ（他UIを後から足した後などに明示呼び出し） */
+//   bringToFront(){
+//     const core = Core.instance;
+//     if (core && core._stage){
+//       core._stage.appendChild(this._element);
+//     }
+//   }
 
-  // ---- 内部：計測 & レイアウト ----------------------------------
+//   // ---- 内部：計測 & レイアウト ----------------------------------
 
-  _metrics(){
-    // getComputedStyle で実寸を取る（border幅/角丸/外寸）
-    const cs = getComputedStyle(this._element);
-    const bw = {
-      l: parseFloat(cs.borderLeftWidth)   || 0,
-      r: parseFloat(cs.borderRightWidth)  || 0,
-      t: parseFloat(cs.borderTopWidth)    || 0,
-      b: parseFloat(cs.borderBottomWidth) || 0
-    };
-    // 角丸：簡易に1値（必要なら各コーナー別にも拡張可）
-    const br = parseFloat(cs.borderTopLeftRadius) || parseFloat(cs.borderRadius) || 0;
-    return { bw, br, W:this.width|0, H:this.height|0 };
-  }
+//   _metrics(){
+//     // getComputedStyle で実寸を取る（border幅/角丸/外寸）
+//     const cs = getComputedStyle(this._element);
+//     const bw = {
+//       l: parseFloat(cs.borderLeftWidth)   || 0,
+//       r: parseFloat(cs.borderRightWidth)  || 0,
+//       t: parseFloat(cs.borderTopWidth)    || 0,
+//       b: parseFloat(cs.borderBottomWidth) || 0
+//     };
+//     // 角丸：簡易に1値（必要なら各コーナー別にも拡張可）
+//     const br = parseFloat(cs.borderTopLeftRadius) || parseFloat(cs.borderRadius) || 0;
+//     return { bw, br, W:this.width|0, H:this.height|0 };
+//   }
 
-  _layoutParts(){
-    const { bw, br, W, H } = this._metrics();
-    for (const [,m] of this._parts){
-      const n = m.node;
-      const w = (n.width|0), h = (n.height|0);
-      const rx = m.followRadius ? br : 0;
-      const ry = m.followRadius ? br : 0;
-      let x = 0, y = 0;
+//   _layoutParts(){
+//     const { bw, br, W, H } = this._metrics();
+//     for (const [,m] of this._parts){
+//       const n = m.node;
+//       const w = (n.width|0), h = (n.height|0);
+//       const rx = m.followRadius ? br : 0;
+//       const ry = m.followRadius ? br : 0;
+//       let x = 0, y = 0;
 
-      // アンカー基準のベース位置
-      switch(m.anchor){
-        case 'tl': x = (m.inside? bw.l + rx : -w - bw.l);
-                   y = (m.inside? bw.t + ry : -h - bw.t); break;
-        case 'tr': x = (m.inside? W - w - bw.r - rx : W + bw.r);
-                   y = (m.inside? bw.t + ry : -h - bw.t); break;
-        case 'bl': x = (m.inside? bw.l + rx : -w - bw.l);
-                   y = (m.inside? H - h - bw.b - ry : H + bw.b); break;
-        case 'br': x = (m.inside? W - w - bw.r - rx : W + bw.r);
-                   y = (m.inside? H - h - bw.b - ry : H + bw.b); break;
-        case 't' : x = Math.round((W - w)/2);
-                   y = (m.inside? bw.t + ry : -h - bw.t); break;
-        case 'b' : x = Math.round((W - w)/2);
-                   y = (m.inside? H - h - bw.b - ry : H + bw.b); break;
-        case 'l' : x = (m.inside? bw.l + rx : -w - bw.l);
-                   y = Math.round((H - h)/2); break;
-        case 'r' : x = (m.inside? W - w - bw.r - rx : W + bw.r);
-                   y = Math.round((H - h)/2); break;
-        default  : x = Math.round((W - w)/2);
-                   y = Math.round((H - h)/2); break;
-      }
+//       // アンカー基準のベース位置
+//       switch(m.anchor){
+//         case 'tl': x = (m.inside? bw.l + rx : -w - bw.l);
+//                    y = (m.inside? bw.t + ry : -h - bw.t); break;
+//         case 'tr': x = (m.inside? W - w - bw.r - rx : W + bw.r);
+//                    y = (m.inside? bw.t + ry : -h - bw.t); break;
+//         case 'bl': x = (m.inside? bw.l + rx : -w - bw.l);
+//                    y = (m.inside? H - h - bw.b - ry : H + bw.b); break;
+//         case 'br': x = (m.inside? W - w - bw.r - rx : W + bw.r);
+//                    y = (m.inside? H - h - bw.b - ry : H + bw.b); break;
+//         case 't' : x = Math.round((W - w)/2);
+//                    y = (m.inside? bw.t + ry : -h - bw.t); break;
+//         case 'b' : x = Math.round((W - w)/2);
+//                    y = (m.inside? H - h - bw.b - ry : H + bw.b); break;
+//         case 'l' : x = (m.inside? bw.l + rx : -w - bw.l);
+//                    y = Math.round((H - h)/2); break;
+//         case 'r' : x = (m.inside? W - w - bw.r - rx : W + bw.r);
+//                    y = Math.round((H - h)/2); break;
+//         default  : x = Math.round((W - w)/2);
+//                    y = Math.round((H - h)/2); break;
+//       }
 
-      // ---- オフセットを「内側に正」で解釈（outside=falseのときは通常XY）----
-      const ox = m.offsetX|0, oy = m.offsetY|0;
-      if (m.inside !== false){
-        switch(m.anchor){
-          case 'tl': x +=  ox; y +=  oy; break;
-          case 'tr': x -=  ox; y +=  oy; break;
-          case 'bl': x +=  ox; y -=  oy; break;
-          case 'br': x -=  ox; y -=  oy; break;
-          case 't' : x +=  ox; y +=  oy; break;
-          case 'b' : x +=  ox; y -=  oy; break;
-          case 'l' : x +=  ox; y +=  oy; break;
-          case 'r' : x -=  ox; y +=  oy; break;
-          default  : x +=  ox; y +=  oy; break;
-        }
-      } else {
-        x += ox; y += oy;
-      }
+//       // ---- オフセットを「内側に正」で解釈（outside=falseのときは通常XY）----
+//       const ox = m.offsetX|0, oy = m.offsetY|0;
+//       if (m.inside !== false){
+//         switch(m.anchor){
+//           case 'tl': x +=  ox; y +=  oy; break;
+//           case 'tr': x -=  ox; y +=  oy; break;
+//           case 'bl': x +=  ox; y -=  oy; break;
+//           case 'br': x -=  ox; y -=  oy; break;
+//           case 't' : x +=  ox; y +=  oy; break;
+//           case 'b' : x +=  ox; y -=  oy; break;
+//           case 'l' : x +=  ox; y +=  oy; break;
+//           case 'r' : x -=  ox; y +=  oy; break;
+//           default  : x +=  ox; y +=  oy; break;
+//         }
+//       } else {
+//         x += ox; y += oy;
+//       }
 
-      n.x = Math.round(x);
-      n.y = Math.round(y);
-    }
-  }
-}
+//       n.x = Math.round(x);
+//       n.y = Math.round(y);
+//     }
+//   }
+// }
 
 
 
@@ -480,8 +480,7 @@ export class Label extends Entity {
     this.textAlign = 'left';
     this.lineHeight = 1.2;
     this._autoSize = true;
-    // シーンに追加されたタイミングで実寸を再測定（背景も即見える）
-    //this.on(Event.ADDED_TO_SCENE, ()=>{ if (this._autoSize) this._autosize(); });
+    this.fitToTextWidth = false;
   }
   get text(){ return this._element.textContent; }
   set text(v){ this._element.textContent = v; if (this._autoSize) this._autosize(); }
@@ -601,6 +600,11 @@ export class Label extends Entity {
     const rect = this._element.getBoundingClientRect();
     if (!this._width) this.width = Math.ceil(rect.width);
     if (!this._height) this.height = Math.ceil(rect.height);
+    // ★ 変更: フラグONのときだけ「文字幅にぴったり」へ
+    if (this.fitToTextWidth) {
+      const tw = this.textWidth;
+      if (this.width !== tw) this.width = tw;
+    }
   }
 }
 
@@ -1741,7 +1745,7 @@ if (!Object.getOwnPropertyDescriptor(Node.prototype,'touchEnabled')){
   });
 }
 export { Easing };
-export default { Core, Scene, Group, FrameOverlay, Entity, Sprite, Label, Splite, Game, Event, TileMap, Rect, Circle, loadGoogleFont };
+export default { Core, Scene, Group, Entity, Sprite, Label, Splite, Game, Event, TileMap, Rect, Circle, loadGoogleFont };
 
 // =============================
 // Minimal style to make DOM nodes visible (optional; consumer may override)

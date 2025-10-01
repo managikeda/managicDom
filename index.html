@@ -1,7 +1,8 @@
 <!doctype html>
-<html>
+<html lang="ja">
 <head>
   <meta charset="utf-8" />
+  <meta http-equiv="content-language" content="ja">
   <!-- 「managic」をローカルファイルへマッピング -->
   <!-- <script type="importmap">
   {
@@ -16,8 +17,8 @@
   <div id="managic-stage"></div>
   <script type="module">
     // import { Core, Scene, FrameOverlay, Sprite, Label, loadGoogleFont, TileMap, Rect, Circle } from 'managic';
-    import { Core, Scene, FrameOverlay, Sprite, Label, loadGoogleFont, TileMap, Rect, Circle } from './managic_dom.js';
-    import { FrameWindow, UIButton } from './managic_ui.js';
+    import { Core, Scene, Sprite, Label, loadGoogleFont, TileMap, Rect, Circle } from './managic_dom.js';
+    import { FrameWindow, UIButton, LabelArea, FrameOverlay } from './managic_ui.js';
 
     // --- google fontをプリロード ---
     const FONTS = [
@@ -45,6 +46,7 @@
         './image/player.png',
         './image/chara1.png',
         './image/chara3.png',
+        './image/sd/elf_ranger.png',
         './image/map1.png'
     ]);
 
@@ -137,15 +139,36 @@
         // win.setSize(320, 180).usePreset('accent');
 
         // 2) UIButton の利用（画像なし＝CSSテーマボタン）
-        const btn1 = new UIButton(160, 40, { text: 'OK' });
-        btn1.x = 360; btn1.y = 40;
-        btn1.ontouchend = () => { console.log('OK clicked'); };
-        //btn1.on('click', ()=> { console.log('OK clicked'); });
-        btn1.onenterframe = () => {
-          btn1.x += 1;
-        }
+        const btn1 = new UIButton(160, 40, { text: '長いボタンテキストです', maxFontSize: 20 });
+        btn1.x = 60; btn1.y = 440;
+        btn1.ontouchend = () => { 
+          console.log('OK clicked');
+          btn1.setText('クリックしてね');
+          //core.replaceScene(createGameScene()); 
+        };
+        //btn1.setText('クリックしてね');
+        //btn1._bg.tl.fadeTo(0, 100);
+        //btn1.tl.scaleTo(0, 1, 60);
         scene.addChild(btn1);
+        console.log(btn1.width, btn1.height);
+        console.log(btn1.label.width, btn1.label.height);
+        btn1.label.backgroundColor = 'rgba(255,255,255,.5)';
 
+        // LabelArea
+        const la = new LabelArea(420, 140, {
+          font: '16px "Zen Kaku Gothic New", system-ui, sans-serif',
+          fontSize: 16,      // 明示指定もOK（fontにpxが含まれていれば省略可）
+          speed: 1,          // 2フレームごとに1文字
+          text:
+            'これは [b]複数行[/b] のテキスト表示と [u]タイプライタ[/u] のサンプルです。\n' +
+            '「禁則処理」により、行頭に句読点が来ないように「簡易調整します」。' +
+            '長い文章も自動で改行されます。'+
+            'これは [b]複数行[/b] のテキスト表示と [u]タイプライタ[/u] のサンプルです。「禁則処理」により、行頭に句読点が来ないように簡易調整します。長い文章も自動で改行されます。'
+        });
+        la.x = 320; la.y = 340;
+        scene.addChild(la);
+
+        la.play(); // タイプ開始（speed>0の時だけ有効）
 
         //player(矢印キーで上下左右に移動)
         const player = new Sprite(32, 32);
@@ -157,11 +180,13 @@
         scene.addChild(player);
 
         player.on('touchend', () => {
-          core.replaceScene(createGameScene());
+          la.skipAll();
+          //la.setText('ほげほげほげほえええええええ');
+          la.text = "いま、多くの人はまだ「近未来の話」としてAIを語っています。\n子どもが社会に出るころには、AIが仕事を奪うのではないか。入試や受験の形も変わるのではないか。そう考えると、不安も期待も「これから」の出来事として語りやすい。しかし現実は、もうずっと先に進んでいます。大規模言語モデル（LLM）と呼ばれるAIは、すでに学校教育や受験勉強の延長線上にある「知識の獲得」と「正解の再現」を、人間の比ではない規模と速度でこなしてしまう。それは未来ではなく、現在進行形の出来事です。";
+          //core.replaceScene(createGameScene());
         });
         
         player.onenterframe = () => {
-
           
           if(core.input.left){
             player.x -= player.speed;
@@ -334,35 +359,26 @@
         const scene = new Scene();
         scene.backgroundColor = '#888';
 
-        const frame = new FrameOverlay();     // ← サイズ指定なしでOK（Coreに自動フィット）
-        scene.addChild(frame);
+        const overlay = new FrameOverlay('arcade');
+        overlay.x = 0; overlay.y = 0;
+        scene.addChild(overlay);
 
-        // 角丸＋影のプリセット
-        frame.usePreset('bezel');           // border/角丸を変えても parts は自動追従
+        // パーツ追加（自動配置なし → 自分で座標指定）
+        const logo = new Label('MY GAME');
+        logo.font = 'bold 20px system-ui';
+        logo.color = '#fff';
+        overlay.addPart(logo);
+        logo.x = 12;
+        logo.y = 8;
 
-        // parts のオフセットは「内側に正」
-        frame.putPart('screwTR', new Circle(8,{fillColor:'#ccc',strokeColor:'#888',strokeWidth:2}),
-              { anchor:'tr', offsetX:32, offsetY:8 });
-        frame.putPart('screwTL', new Circle(8,{fillColor:'#ccc',strokeColor:'#888',strokeWidth:2}),
-              { anchor:'tl', offsetX:8, offsetY:8 });
-        frame.putPart('screwBR', new Circle(8,{fillColor:'#ccc',strokeColor:'#888',strokeWidth:2}),
-              { anchor:'br', offsetX:32, offsetY:32 });
-        frame.putPart('screwBL', new Circle(8,{fillColor:'#ccc',strokeColor:'#888',strokeWidth:2}),
-              { anchor:'bl', offsetX:8, offsetY:32 });
         // 9-slice 画像フレーム
         // frame.useImageFrame('./frame.png', 24, 'stretch');
 
-        // 角の飾り（部品）を四隅に
-        // const screw = new Circle(8, { fillColor:'#ccc', strokeColor:'#888', strokeWidth:2 });
-        // frame.putPart('screwTL', new Circle(8,{fillColor:'#ccc',strokeColor:'#888',strokeWidth:2}), { anchor:'tl', offsetX:8, offsetY:8 });
-        // frame.putPart('screwTR', new Circle(8,{fillColor:'#ccc',strokeColor:'#888',strokeWidth:2}), { anchor:'tr', offsetX:-24, offsetY:8 });
-        // frame.putPart('screwBL', new Circle(8,{fillColor:'#ccc',strokeColor:'#888',strokeWidth:2}), { anchor:'bl', offsetX:8, offsetY:-24 });
-        // frame.putPart('screwBR', new Circle(8,{fillColor:'#ccc',strokeColor:'#888',strokeWidth:2}), { anchor:'br', offsetX:-24, offsetY:-24 });
-
-        // Core リサイズや preset 変更 → 自動でフレーム＆部品を再配置
-
-        
-        
+        //背景イメージ
+        const bg = new Sprite(832, 1216);
+        bg.image = core.assets['./image/sd/elf_ranger.png'];
+        bg.y = -100;
+        scene.addChild(bg);
 
         const player = new Sprite(32, 32);
         player.image = core.assets['./image/chara1.png'];
