@@ -18,7 +18,7 @@
   <script type="module">
     // import { Core, Scene, FrameOverlay, Sprite, Label, loadGoogleFont, TileMap, Rect, Circle } from 'managic';
     import { Core, Scene, Sprite, Label, loadGoogleFont, TileMap, Rect, Circle } from './managic_dom.js';
-    import { FrameWindow, UIButton, LabelArea, FrameOverlay } from './managic_ui.js';
+    import { FrameWindow, CharSprite, UIButton, LabelArea, FrameOverlay } from './managic_ui.js';
 
     // --- google fontをプリロード ---
     const FONTS = [
@@ -47,6 +47,13 @@
         './image/chara1.png',
         './image/chara3.png',
         './image/sd/elf_ranger.png',
+        './image/sd/bg_forest_elf.png',
+        './image/sd/bg_dangeon01.png',
+        './image/sd/bg_dangeon02.png',
+        './assets/chara/chara_elfRanger_default.png',
+        './assets/chara/chara_elfRanger_smile.png',
+        './assets/chara/chara_humKnight_default.png',
+        './assets/chara/chara_behimos_default.png',
         './image/map1.png'
     ]);
 
@@ -375,15 +382,31 @@
         // frame.useImageFrame('./frame.png', 24, 'stretch');
 
         //背景イメージ
-        const bg = new Sprite(832, 1216);
-        bg.image = core.assets['./image/sd/elf_ranger.png'];
-        bg.y = -100;
+        const bg = new Sprite(1536, 1023);//832, 1216
+        bg.image = core.assets['./image/sd/bg_dangeon02.png'];
+        bg.y = -1023*0.2;
+        bg.x = -1536*0.2;
+        bg.scaleX = 0.6;
+        bg.scaleY = 0.6;
         scene.addChild(bg);
+
+        //キャラクターイメージ
+        // const charaimage = new Sprite(1024, 1536);//832, 1216
+        // charaimage.image = core.assets['./image/sd/char_behimos_default.png'];
+        // charaimage.x = -100;
+        // charaimage.y = -400;
+        // charaimage.scaleX = 0.5;
+        // charaimage.scaleY = 0.5;
+        // scene.addChild(charaimage);
+
+        const elf = new CharSprite('behimos', { baseDir:'./assets/chara', width:512, height:768, fit:true });
+        elf.x = core.width/2-elf.width/2; elf.y = 0;
+        scene.addChild(elf);
 
         const player = new Sprite(32, 32);
         player.image = core.assets['./image/chara1.png'];
-        player.x = 136;
-        player.y = 200;
+        player.x = 130;
+        player.y = 15//200;
       //player.moveTo(136, 200);
     //   player.frames = [[0,0],[1,0],[2,0],[0,0],[1,0],[2,0],[0,1],[1,1],[2,1],[0,1],[1,1],[2,1],[0,2],[1,2],[2,2],[0,2],[1,2],[2,2]];
     //   let t = 0;
@@ -407,24 +430,36 @@
         }
       };
       scene.addChild(player);
+      player.ontouchend = () => {
+        elf.setDiff('smile');
+      };
 
       const enemy = new Sprite(32, 32);
       enemy.image = core.assets['./image/chara2.png'];
-      enemy.x = 250;
-      enemy.y = 250;
+      enemy.x = 180;
+      enemy.y = 15;
       scene.addChild(enemy);
+      enemy.ontouchend = () => {
+        elf.showEmotion('💡', { anim:'pop' });
+        elf.animShake(8, 6);
+      };
 
       const enemy2 = new Sprite(32, 32);
       enemy2.image = core.assets['./image/chara5.png'];
-      enemy2.x = 250;
-      enemy2.y = 250;
+      enemy2.x = 230;
+      enemy2.y = 15;
       scene.addChild(enemy2);
 
       enemy2.ontouchend = () => {
-        core.prefetch(['./image/chara6.png']).then(()=>{
-          console.log('prefetch done');
-          enemy2.image = core.assets['./image/chara6.png'];
-        });
+        scene.tl.delay(5).then(()=> elf.animSlideInLeft())
+        .delay(30).then(()=> elf.animAttack())
+        .delay(30).then(()=> elf.animDamaged())
+        .delay(30).then(()=> elf.animSlideOutRight(80, 18));
+        //画像を追加読み込みして切り替え
+        // core.prefetch(['./image/chara6.png']).then(()=>{
+        //   console.log('prefetch done');
+        //   enemy2.image = core.assets['./image/chara6.png'];
+        // });
       };
 
       scene.onenterframe = () => {
@@ -441,36 +476,39 @@
         }
       };
 
-      player.tl
-        .moveBy(200, 0, 30, 'easeOutQuad')
-        .moveBy(-200, 0, 30, 'easeInQuad')
-        .rotateTo(320, 60, 'easeInOutQuad')
-        .rotateTo(-720, 60, 'easeInOutQuad')
-        .moveBy(200, -100, 30, 'easeInCubic')
-        .moveBy(-200, 100, 30, 'easeOutCubic')
-        .moveBy(0, -200, 30, 'easeInOutCubic')
-        .moveBy(0, 200, 30, 'easeInOutQuad')
-        .loop();
+      // player.tl
+      //   .moveBy(200, 0, 30, 'easeOutQuad').and()
+      //   .rotateTo(320, 30, 'easeInOutQuad')
+      //   .moveBy(-200, 0, 30, 'easeInQuad').and()
+      //   .rotateTo(-720, 30, 'easeInOutQuad')
+      //   .moveBy(200, 100, 30, 'easeInCubic').and().fadeTo(0.5, 30, 'easeInOutQuad')
+      //   .moveBy(-200, -100, 30, 'easeOutCubic').and().fadeTo(1, 30, 'easeInCubic')
+      //   .moveBy(0, 200, 30, 'easeInOutCubic')
+      //   .moveBy(0, -200, 30, 'easeInOutQuad')
+      //   .loop();
 
-      // 1フレームごとに右へ
-    //   scene.on('enterframe', (e) => { player.moveBy(1, 0); });
-      // Timelineを使った移動
-      //player.tl.rotateTo(-90, 60).rotateTo(90, 60).rotateTo(0, 60);
-      //player.tl.moveBy(50, 20, 60).moveBy(-50, -20, 60).loop();
-      //player.tl.scaleTo(3, 3, 60).scaleTo(0.1, 0.1, 60).scaleTo(-1, 1, 60).scaleTo(-1, -1, 60).loop();//OK
-      //player.tl.fadeTo(0.3, 15).fadeTo(1, 15);//OK
-      //player.tl.moveTo(0, 200, 30).moveTo(236, 200, 30).moveTo(0, 20, 30);//OK
-        // player.tl
-        // .moveTo(50, 200, 30)
-        // .rotateTo(-360, 30)
-        // .fadeTo(0.3, 15)
-        // .delay(10)
-        // .fadeTo(1, 15)
-        // .moveBy(50, 0, 30)
-        // .rotateTo(360, 30)
-        // .fadeTo(0.3, 15)
-        // .delay(10)
-        // .fadeTo(1, 15).loop();
+      // 1) FrameWindow の利用
+      const win = new FrameWindow(core.width-48, 200, 'panel');   // プリセット: 'panel' | 'dark' | 'glass' | 'accent'
+      win.x = 24; win.y = core.height-224;
+      win.padding = { top:16, right:16, bottom:16, left:16 };
+      scene.addChild(win);
+
+      // LabelArea
+      const la = new LabelArea(core.width-88, 140, {
+          font: '16px "Zen Kaku Gothic New", system-ui, sans-serif',
+          fontSize: 24,      // 明示指定もOK（fontにpxが含まれていれば省略可）
+          speed: 1,          // 2フレームごとに1文字
+          text:
+            '……何者だ。森に足を踏み入れる者の気配を見逃すと思ったか？\n' +
+            'ここは私たちの棲み処、血脈より深く繋がれた大樹の加護のもとにある。獣であれ人であれ、理由なく立ち入れば、この森そのものが牙を剥くことを忘れるな。\n'
+        });
+        la.x = 10; la.y = 10;
+        win.content.addChild(la);
+        la.ontouchend = () => {
+          console.log('ontouchend');
+          la.setText('刃を抜くつもりはない……まだな。だが、お前が友か敵か、自然を敬う心を持つのかどうか、それを見極めるのは今この瞬間だ。\n' +
+            '――答えろ。なぜ、この森に来た？');
+        };
 
         scene.on('touchend', () => {
           core.pushScene(createPushedScene());

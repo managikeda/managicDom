@@ -712,230 +712,298 @@ export class FrameOverlay extends Group {
 }
 
 
+// =====================================================
+// CharSprite — JRPG風「立ち絵」用：差分・感情・演出まとめて
+// 依存: managic_dom(enchant-dom) の Group/Sprite/Label/Core/Event/Timeline
+// 使い方:
+//   const ch = new CharSprite('elfRanger', { baseDir:'./assets/chara', width:320, height:360, fit:true });
+//   scene.addChild(ch);
+//   ch.setDiff('smile');             // chara_elfRanger_smile.png に切替
+//   ch.showEmotion('💢', { x:260, y:24, anim:'pop' });
+//   ch.animAttack();                 // プリセット演出
+//   ch.animFadeIn(20);
+// =====================================================
+export class CharSprite extends Group {
+  /**
+   * @param {string} name  例: 'elfRanger'
+   * @param {object} opts
+   *   - baseDir: 画像ディレクトリ（末尾スラ不要）例 './assets/chara'
+   *   - width,height: CharSprite 自体の枠サイズ（fit=true時のターゲット）
+   *   - defaultDiff: 初期差分（既定 'default'）
+   *   - fit: true で「大きいときだけ縮小」して枠に収める（既定 true / 拡大はしない）
+   */
+  constructor(name, opts = {}) {
+    super();
+    this.name = name;
+    this.baseDir = opts.baseDir || './assets/chara';
+    this._w = opts.width | 0 || 0;
+    this._h = opts.height | 0 || 0;
+    if (this._w) this.width = this._w;
+    if (this._h) this.height = this._h;
 
-// =============================
-// FrameOverlay: 最前面フレーム（borderはそのまま表示／partsはfitToCoreで自動再配置）
-// =============================
+    this.fit = opts.fit !== false; // 既定ON（拡大はしない）
+    this.defaultDiff = opts.defaultDiff || 'default';
 
+    // this.bg = new Sprite(opts.width, opts.height);
+    // this.bg.backgroundColor = '#f00';
+    // this.addChild(this.bg);
 
+    // (0) フレームはクリップ（枠外を隠す）
+    this._element.style.overflow = 'hidden';
+    // (1) 中央アンカー用ピボット（ここを枠の“中心”に置く）
+    this._pivot = new Group();
+    this.addChild(this._pivot);
+    // (2) body は 0x0 で作る（画像ロード後に natural へ更新）
+    this.body = new Sprite(0, 0);
+    this.body._shrink = 1;
+    // this.body.backgroundColor = '#0f0';
+    this.addChild(this.body);
 
+    this._emo = null;
+    this._diffs = new Set();
 
-// export class FrameOverlay extends Group {
-//   constructor(){
-//     super();
-//     const st = this._element.style;
-//     this._element.classList.add('enchant-frame-overlay');
-//     st.pointerEvents = 'none';
-//     st.zIndex = '9999';
-//     st.left = '0px';
-//     st.top  = '0px';
-//     st.boxSizing = 'border-box';   // 外寸=width/height
+    // 初期差分セット
+    this.setDiff(this.defaultDiff);
 
-//     this._autoFit = true;
-//     this._parts = new Map();       // name -> { node, anchor, offsetX, offsetY, inside, followRadius }
+    // シーンに入ったタイミングでもフィット
+    this.on(Event.ADDED_TO_SCENE, () => this._applyFit());
+  }
 
-//     // シーンに入ったら：DOM上は stage 直下（最前面）へ移動し、初回フィット
-//     this.on(Event.ADDED_TO_SCENE, ()=>{
-//       const core = Core.instance;
-//       if (core && core._stage) core._stage.appendChild(this._element);
-//       if (this._autoFit) this.fitToCore();
-//     });
+  // -------- 公開API --------
+  setSize(w, h) {
+    this._w = w | 0;
+    this._h = h | 0;
+    this.width = this._w;
+    this.height = this._h;
+    this._applyFit();
+    return this;
+  }
 
-//     // Coreリサイズに追従
-//     const core = Core.instance;
-//     if (core){
-//       core.on(Event.CORE_RESIZE, (e)=>{
-//         if (this._autoFit) this.fitToCore(e.width, e.height);
-//       });
-//     }
-//   }
+  setDiff(diffName) {
+    const urls = this._buildUrl(this.name, diffName);
+    this._diffs.add(diffName);
+    this._setImage(urls);
+    return this;
+  }
 
-//   // ---- 公開API -------------------------------------------------
+  listDiffsFromAssets() {
+    const core = Core.instance;
+    if (!core) return Array.from(this._diffs);
+    const re = new RegExp(`(?:^|/)char(?:a)?_${this.name}_(\\w+)\\.png$`, 'i');
+    Object.keys(core.assets || {}).forEach((k) => {
+      const m = re.exec(k);
+      if (m) this._diffs.add(m[1]);
+    });
+    return Array.from(this._diffs);
+  }
 
-//   /**
-//    * Coreの外寸にフィット（box-sizing:border-box なので border込みで一致）
-//    * borderやborder-radiusが変わってもpartsを再レイアウト
-//    */
-//   fitToCore(w, h){
-//     const core = Core.instance;
-//     const W = (w!=null ? w : (core ? core.width  : this.width  || 0))|0;
-//     const H = (h!=null ? h : (core ? core.height : this.height || 0))|0;
-//     this.width  = W;
-//     this.height = H;
-//     this._layoutParts();
-//     return this;
-//   }
+  showEmotion(what, opt = {}) {
+    if (this._emo) {
+      this.removeChild(this._emo);
+      this._emo = null;
+    }
+    if (what instanceof Sprite || what instanceof Label) {
+      this._emo = what;
+    } else if (
+      typeof what === 'string' &&
+      (/^data:|\.png$|\.jpg$|\.jpeg$|\.webp$|^https?:/i.test(what))
+    ) {
+      const sp = new Sprite(32, 32);
+      sp.image = what;
+      this._emo = sp;
+    } else {
+      const lb = new Label(String(what));
+      lb.font = 'bold 28px system-ui, sans-serif';
+      lb.color = '#fff';
+      lb._element.style.textShadow = '0 2px 8px rgba(0,0,0,.5)';
+      lb.fitToTextWidth = true;
+      this._emo = lb;
+    }
+    // アイコン
+    this.addChild(this._emo);
+    // const fw = this.width  || this._w || 0;
+    // const fh = this.height || this._h || 0;
+    // 既定は「枠の右上」（pivot は中心基準）
+    // const defX = Math.round((fw/2) - 140);
+    // const defY = Math.round(-(fh/2) + 120);
+    // this._emo.x = (opt.x != null) ? (opt.x|0) : defX;
+    // this._emo.y = (opt.y != null) ? (opt.y|0) : defY;
+    this._emo.x = this.width*0.1;
+    this._emo.y = this.height*0.1;
+    this._emo.opacity = 1;
+    this._emo.tl.clear();
 
-//   /**
-//    * 見た目プリセット
-//    * @param {'simple'|'arcade'|'bezel'|'rounded'|'shadow-only'} name
-//    * @param {object} opts 例: { border, borderRadius, boxShadow, background }
-//    */
-//   usePreset(name='simple', opts={}){
-//     const st = this._element.style;
-//     // reset
-//     st.background   = 'transparent';
-//     st.border       = '0';
-//     //st.boxShadow    = 'inset 0 0 8px #111, 5px 5px 5px 15px #333';//'none';
-//     st.boxShadow    = 'inset 0 0 8px #111, 5px 5px 5px 15px '+getComputedStyle(document.body).backgroundColor;//'none';
-//     //getComputedStyle(document.body).backgroundColor
-//     st.borderImage  = 'none';
-//     st.borderRadius = '';
+    const dur = opt.duration | 0 || 24;
+    switch (opt.anim) {
+      case 'pop':
+        this._emo.scaleX = this._emo.scaleY = 2;
+        this._emo.opacity = 0;
+        this._emo.tl.fadeTo(1, 6).and().moveBy(0, -50, 6)
+        .delay(30)
+        .moveBy(0,-50,6).and().fadeTo(0,6);
+        break;
+      case 'bounce':
+        this._emo.tl
+          .moveBy(0, -12, dur / 3)
+          .moveBy(0, 12, dur / 3)
+          .moveBy(0, -6, dur / 6)
+          .moveBy(0, 6, dur / 6);
+        break;
+      case 'shake':
+        for (let i = 0; i < 4; i++) {
+          this._emo.tl.moveBy(3, 0, 2).moveBy(-6, 0, 4).moveBy(3, 0, 2);
+        }
+        break;
+      default:
+        break;
+    }
+    return this._emo;
+  }
+  hideEmotion() {
+    if (this._emo) {
+      this._emo.remove();
+      this._emo = null;
+    }
+  }
 
-//     switch(name){
-//       case 'arcade':
-//         st.border = '12px solid #111';
-//         //st.boxShadow = 'inset 0 0 20px rgba(255,255,255,.06), 0 0 12px rgba(0,0,0,.6)';
-//         //st.boxShadow = 'inset 0 0 8px #111, 5px 5px 5px 15px #333';
-//         st.borderRadius = '10px';
-//         break;
-//       case 'bezel':
-//         st.border = '18px solid rgb(127, 90, 172)';
-//         //st.boxShadow = 'inset 0 6px 12px rgba(56, 23, 23, 0.08), inset 0 -6px 12px rgba(0,0,0,.3)';
-//         st.borderRadius = '8px';
-//         break;
-//       case 'rounded':
-//         st.border = '8px solid #222';
-//         //st.borderRadius = '20px';
-//         st.boxShadow = '0 4px 16px rgba(0,0,0,.4)';
-//         break;
-//       case 'shadow-only':
-//         st.boxShadow = '0 8px 24px rgba(0,0,0,.5), inset 0 0 0 2px rgba(255,255,255,.05)';
-//         break;
-//       default: // simple
-//         st.border = '6px solid #000';
-//         //st.boxShadow = '0 6px 18px rgba(0,0,0,.45)';
-//         st.borderRadius = '6px';
-//     }
-//     // 任意上書き
-//     if (opts.border)        st.border = opts.border;
-//     if (opts.borderRadius!=null) st.borderRadius = (opts.borderRadius|0)+'px';
-//     if (opts.boxShadow)     st.boxShadow = opts.boxShadow;
-//     if (opts.background)    st.background = opts.background;
+  animFadeIn(frames = 15) {
+    this.opacity = 0;
+    this.tl.fadeTo(1, frames);
+    return this;
+  }
+  animFadeOut(frames = 15) {
+    this.tl.fadeTo(0, frames);
+    return this;
+  }
+  animAttack() {
+    this.tl.clear();
+    this.scaleX = this.scaleY = 1.0;
+    this.tl.scaleTo(1.2, 1.2, 3).scaleTo(1.0, 1.0, 6);
+    return this;
+  }
+  animDamaged() {
+    this.tl.clear();
+    this.tl
+      .scaleTo(0.92, 0.92, 3)
+      .fadeTo(0, 3)
+      .fadeTo(1, 3)
+      .fadeTo(0, 3)
+      .fadeTo(1, 3)
+      .scaleTo(1.0, 1.0, 6)
+    return this;
+  }
+  animShake(frames = 20, amp = 6) {
+    this.tl.clear();
+    for (let i = 0; i < Math.max(1, frames / 4); i++) {
+      this.tl.moveBy(amp, 0, 2).moveBy(-2 * amp, 0, 4).moveBy(amp, 0, 2);
+    }
+    return this;
+  }
+  animSlideInLeft(dist = 80, frames = 18) {
+    this.moveBy(-dist, 0);
+    this.opacity = 0.001;
+    this.tl.moveBy(dist, 0, frames).and().fadeTo(1, frames);
+    return this;
+  }
+  animSlideOutRight(dist = 80, frames = 18) {
+    this.tl.moveBy(dist, 0, frames).and().fadeTo(0, frames);
+    return this;
+  }
 
-//     // 見た目変更後もCoreに外寸を合わせつつparts再レイアウト
-//     if (this._autoFit) this.fitToCore();
-//     return this;
-//   }
+  // -------- 内部実装 --------
+  _buildUrl(name, diff) {
+    const a = `${this.baseDir}/chara_${name}_${diff}.png`;
+    const b = `${this.baseDir}/char_${name}_${diff}.png`;
+    return [a, b];
+  }
 
-//   /**
-//    * 9-slice画像フレーム
-//    * @param {string} url
-//    * @param {number} slice 例: 24
-//    * @param {'stretch'|'repeat'|'round'} repeat
-//    */
-//   useImageFrame(url, slice=24, repeat='stretch'){
-//     const st = this._element.style;
-//     st.borderWidth     = `${slice|0}px`;
-//     st.borderStyle     = 'solid';
-//     st.borderImageSource = `url("${url}")`;
-//     st.borderImageSlice  = String(slice|0);
-//     st.borderImageRepeat = repeat;
-//     if (this._autoFit) this.fitToCore();
-//     return this;
-//   }
+  _setImage(urlOrArr) {
+    const tryList = Array.isArray(urlOrArr) ? urlOrArr : [urlOrArr];
+    const core = Core.instance;
 
-//   /**
-//    * 部品を配置（fitToCore時に常に自動再配置）
-//    * @param {string} name
-//    * @param {Node} node
-//    * @param {object} opt
-//    *   - anchor: 'tl'|'tr'|'bl'|'br'|'t'|'b'|'l'|'r'|'center'
-//    *   - offsetX/offsetY: 数値。**内側方向を正**とする（outside時は通常のXY）
-//    *   - inside: true=内側（既定） / false=外側
-//    *   - followRadius: true=角丸半径ぶん内側に寄せる（既定）
-//    */
-//   putPart(name, node, opt={}){
-//     const meta = {
-//       node,
-//       anchor: opt.anchor || 'tl',
-//       offsetX: opt.offsetX|0 || 0,
-//       offsetY: opt.offsetY|0 || 0,
-//       inside: opt.inside !== false,
-//       followRadius: opt.followRadius !== false
-//     };
-//     this._parts.set(name, meta);
-//     node._element.style.pointerEvents = 'none';
-//     this.addChild(node);
-//     this._layoutParts(); // 即1回配置
-//     return node;
-//   }
+    const applyNaturalSizeAndFit = (imgEl) => {
+      // (1) body を画像の自然サイズに合わせる（必ず natural を入れる）
+      const natW = imgEl.naturalWidth || imgEl.width || 0;
+      const natH = imgEl.naturalHeight || imgEl.height || 0;
+      this.body.width = natW;
+      this.body.height = natH;
+      // Sprite 側にも natural を反映（フレーム系の内部で参照）
+      this.body._sheetWidth = natW;
+      this.body._sheetHeight = natH;
 
-//   /** 最前面へ（他UIを後から足した後などに明示呼び出し） */
-//   bringToFront(){
-//     const core = Core.instance;
-//     if (core && core._stage){
-//       core._stage.appendChild(this._element);
-//     }
-//   }
+      // (2)(3) フィット＆中央寄せ
+      this._applyFit();
+    };
 
-//   // ---- 内部：計測 & レイアウト ----------------------------------
+    // Core.assets を優先
+    for (const u of tryList) {
+      const asset = core && core.assets ? core.assets[u] : null;
+      if (asset && asset.src) {
+        this.body.image = asset; // enchant-dom の Sprite が onload で _sheetW/H を埋める
+        if (asset.complete) applyNaturalSizeAndFit(asset);
+        else this.body._imgEl.onload = () => applyNaturalSizeAndFit(this.body._imgEl);
+        return;
+      }
+    }
 
-//   _metrics(){
-//     // getComputedStyle で実寸を取る（border幅/角丸/外寸）
-//     const cs = getComputedStyle(this._element);
-//     const bw = {
-//       l: parseFloat(cs.borderLeftWidth)   || 0,
-//       r: parseFloat(cs.borderRightWidth)  || 0,
-//       t: parseFloat(cs.borderTopWidth)    || 0,
-//       b: parseFloat(cs.borderBottomWidth) || 0
-//     };
-//     // 角丸：簡易に1値（必要なら各コーナー別にも拡張可）
-//     const br = parseFloat(cs.borderTopLeftRadius) || parseFloat(cs.borderRadius) || 0;
-//     return { bw, br, W:this.width|0, H:this.height|0 };
-//   }
+    // asset に無ければ遅延ロード
+    const tryNext = (i) => {
+      if (i >= tryList.length) return;
+      const u = tryList[i];
+      const test = new Image();
+      test.onload = () => {
+        this.body.image = test;
+        applyNaturalSizeAndFit(test);
+      };
+      test.onerror = () => tryNext(i + 1);
+      test.src = u;
+    };
+    tryNext(0);
+  }
 
-//   _layoutParts(){
-//     const { bw, br, W, H } = this._metrics();
-//     for (const [,m] of this._parts){
-//       const n = m.node;
-//       const w = (n.width|0), h = (n.height|0);
-//       const rx = m.followRadius ? br : 0;
-//       const ry = m.followRadius ? br : 0;
-//       let x = 0, y = 0;
+  _applyFit() {
+    // ターゲット枠（CharSprite の外寸）
+    const targetW = (this._w || this.width || this.body.width || 0)|0;
+    const targetH = (this._h || this.height || this.body.height || 0)|0;
+    if (!targetW || !targetH) return;
 
-//       // アンカー基準のベース位置
-//       switch(m.anchor){
-//         case 'tl': x = (m.inside? bw.l + rx : -w - bw.l);
-//                    y = (m.inside? bw.t + ry : -h - bw.t); break;
-//         case 'tr': x = (m.inside? W - w - bw.r - rx : W + bw.r);
-//                    y = (m.inside? bw.t + ry : -h - bw.t); break;
-//         case 'bl': x = (m.inside? bw.l + rx : -w - bw.l);
-//                    y = (m.inside? H - h - bw.b - ry : H + bw.b); break;
-//         case 'br': x = (m.inside? W - w - bw.r - rx : W + bw.r);
-//                    y = (m.inside? H - h - bw.b - ry : H + bw.b); break;
-//         case 't' : x = Math.round((W - w)/2);
-//                    y = (m.inside? bw.t + ry : -h - bw.t); break;
-//         case 'b' : x = Math.round((W - w)/2);
-//                    y = (m.inside? H - h - bw.b - ry : H + bw.b); break;
-//         case 'l' : x = (m.inside? bw.l + rx : -w - bw.l);
-//                    y = Math.round((H - h)/2); break;
-//         case 'r' : x = (m.inside? W - w - bw.r - rx : W + bw.r);
-//                    y = Math.round((H - h)/2); break;
-//         default  : x = Math.round((W - w)/2);
-//                    y = Math.round((H - h)/2); break;
-//       }
+    // フレームサイズを確定
+    this.width  = targetW;
+    this.height = targetH;
 
-//       // ---- オフセットを「内側に正」で解釈（outside=falseのときは通常XY）----
-//       const ox = m.offsetX|0, oy = m.offsetY|0;
-//       if (m.inside !== false){
-//         switch(m.anchor){
-//           case 'tl': x +=  ox; y +=  oy; break;
-//           case 'tr': x -=  ox; y +=  oy; break;
-//           case 'bl': x +=  ox; y -=  oy; break;
-//           case 'br': x -=  ox; y -=  oy; break;
-//           case 't' : x +=  ox; y +=  oy; break;
-//           case 'b' : x +=  ox; y -=  oy; break;
-//           case 'l' : x +=  ox; y +=  oy; break;
-//           case 'r' : x -=  ox; y +=  oy; break;
-//           default  : x +=  ox; y +=  oy; break;
-//         }
-//       } else {
-//         x += ox; y += oy;
-//       }
+    // ピボットは枠の“中心”へ
+    this._pivot.x = targetW / 2;
+    this._pivot.y = targetH / 2;
 
-//       n.x = Math.round(x);
-//       n.y = Math.round(y);
-//     }
-//   }
-// }
+    // 画像の自然サイズ（body は natural を width/height に保持している）
+    const natW = this.body.width  || 0;
+    const natH = this.body.height || 0;
+    if (!natW || !natH) {
+      // 画像未ロード時は原点に置いておく
+      this.body.x = 0; this.body.y = 0;
+      this.body.scaleX = this.body.scaleY = 1;
+      return;
+    }
+
+    if (this.fit === false) {
+      // 等倍・中央寄せのみ
+      this.body.scaleX = this.body.scaleY = 1;
+      this.body.x = -(Math.round(natW / 2));  // ★中心基準
+      this.body.y = -(Math.round(natH / 2));  // ★中心基準
+      return;
+    }
+
+    // （2）拡大はしない（大きいときだけ縮小）
+    const sx = targetW / natW;
+    const sy = targetH / natH;
+    const s  = Math.min(1, sx, sy);
+    if(s < 1){
+      this.body._shrink = s;
+    }
+    this.body.scaleX = this.body.scaleY = s;
+
+    // （3）中央寄せ（中心基準の式に修正）
+    this.body.x = -(Math.round((natW * s) / 2));
+    this.body.y = -(Math.round((natH * s) / 2));
+  }
+}

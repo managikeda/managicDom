@@ -1108,11 +1108,11 @@ export class Core extends EventTarget {
 // Alias for backward-compatibility
 export const Game = Core;
 
+
 // -----------------------------
-// Timeline (very small, tl-like)
+// Timeline (parallel-capable, tl-like)
 // -----------------------------
-// --- Easing functions ---
-const Easing = {
+const TL_Easing = {
   linear: t => t,
   easeInQuad: t => t*t,
   easeOutQuad: t => t*(2 - t),
@@ -1123,99 +1123,260 @@ const Easing = {
 };
 
 class TimelineAction {
-  constructor(duration, updater, onend){ this.left=duration|0; this.duration=duration|0; this.updater=updater; this.onend=onend||null; }
+  constructor(duration, updater, onend){
+    this.left = duration|0;
+    this.duration = duration|0;
+    this.updater = updater || null;
+    this.onend = onend || null;
+    // lazy-captured start values
+    this.from = null;
+    // optional fields used by特殊アクション
+    this.keys = null;   // ['x','y'] など
+    this.to = null;     // 絶対値ターゲット
+    this.by = null;     // 相対量 {x:dx,y:dy}
+    this.easing = TL_Easing.linear;
+  }
 }
+
 class Timeline {
-  constructor(node){ this.node=node; this.queue=[]; this.looping=false; this._bind = (e)=> this._tick(e); node.on(Event.ENTER_FRAME, this._bind); }
-  _push(act){ this.queue.push(act); return this; }
-  clear(){ this.queue.length=0; return this; }
-  loop(){ this.looping=true; return this; }
-  unloop(){ this.looping=false; return this; }
-  delay(frames){ return this._push(new TimelineAction(frames, ()=>{})); }
-  then(fn){ return this._push(new TimelineAction(1, ()=>{}, fn)); }
-  _tween(to, frames, props, easing='linear'){
+  constructor(node){
+    this.node = node;
+    // キューは「セグメント」の配列。各セグメントは同時実行アクションの配列
+    this.queue = [];
+    this.looping = false;
+    this._andNext = false; // 直前の .and() により「次を同一セグメントへ」フラグ
+    this._bind = (e)=> this._tick(e);
+    node.on(Event.ENTER_FRAME, this._bind);
+  }
+
+  // ---- キュー操作 ----
+  clear(){ this.queue.length = 0; return this; }
+  loop(){ this.looping = true; return this; }
+  unloop(){ this.looping = false; return this; }
+  and(){ this._andNext = true; return this; }
+
+  delay(frames){
+    const act = new TimelineAction(frames, ()=>{});
+    return this._pushAct(act);
+  }
+
+  then(fn){
+    const act = new TimelineAction(1, ()=>{}, fn);
+    return this._pushAct(act);
+  }
+
+  _pushAct(act){
+    // 直前に .and() が呼ばれていれば、最後のセグメントに積む
+    if (this._andNext && this.queue.length){
+      this.queue[this.queue.length - 1].push(act);
+      this._andNext = false; // and() は「次の1件だけ」に作用
+    } else {
+      this.queue.push([act]);
+    }
+    return this;
+  }
+
+  _mkTween(to, frames, props, easing='linear'){
     const node = this.node;
-    const keys = props || Object.keys(to);
-    const easeFn = (typeof easing === 'function') ? easing : (Easing[easing] || Easing.linear);
+    const easeFn = (typeof easing === 'function') ? easing : (TL_Easing[easing] || TL_Easing.linear);
     const act = new TimelineAction(frames, null, null);
+    act.keys = (props && props.slice()) || Object.keys(to);
     act.to = Object.assign({}, to);
-    act.keys = keys.slice();
-    act.from = null; // lazily capture at action start
     act.easing = easeFn;
     act.updater = ()=>{
       if (!act.from){
         act.from = {};
         act.keys.forEach(k=> act.from[k] = node[k]);
+        // moveBy系は act.by から to を算出（初回に基準を取る）
+        if (act.by){
+          act.to = { x: act.from.x + (act.by.x||0), y: act.from.y + (act.by.y||0) };
+        }
+        // scaleTo で __fitShrink を持つノードなら最終値を補正（任意：CharSprite等の縮小と両立）
+        if (act.keys.length === 2 && act.keys[0]==='scaleX' && act.keys[1]==='scaleY' && node.__fitShrink){
+          act.to = { scaleX: (+act.to.scaleX||0) * node.__fitShrink, scaleY: (+act.to.scaleY||0) * node.__fitShrink };
+        }
       }
-      const t = 1 - (act.left-1)/Math.max(1, act.duration);
-      const te = act.easing(t);
+      const lin = 1 - (act.left-1)/Math.max(1, act.duration);
+      const t = act.easing(Math.max(0, Math.min(1, lin)));
       act.keys.forEach(k=>{
         const s = +act.from[k] || 0;
-        const e = +act.to[k] || 0;
-        node[k] = s + (e - s) * te;
+        const e = +act.to[k]   || 0;
+        node[k] = s + (e - s) * t;
       });
     };
-    act.onend = ()=>{ act.keys.forEach((key)=> { node[key] = act.to[key]; }); };
-    return this._push(act);
+    act.onend = ()=>{
+      // 終了時は最終値を確定（回転だけは 0..360 正規化）
+      act.keys.forEach(k=>{
+        if (k === 'rotation'){
+          let r = (+act.to[k]||0) % 360; if (r < 0) r += 360; this.node[k] = r;
+        } else {
+          this.node[k] = act.to[k];
+        }
+      });
+    };
+    return act;
   }
-    
-  moveTo(x,y,frames,easing){ return this._tween({x,y}, frames, null, easing); }
+
+  // ---- API ----
+  moveTo(x,y,frames,easing){ return this._pushAct(this._mkTween({x,y}, frames, ['x','y'], easing)); }
 
   moveBy(dx,dy,frames,easing){
-     const act = new TimelineAction(frames, null, null);
-     const node = this.node;
-     act.keys = ['x','y'];
-     act.by = { x: dx, y: dy };
-     act.from = null; act.to = null;
-     act.easing = (typeof easing === 'function') ? easing : (Easing[easing] || Easing.linear);
-     act.updater = ()=>{
-       if (!act.from){
-         act.from = { x: node.x, y: node.y };
-         act.to   = { x: act.from.x + act.by.x, y: act.from.y + act.by.y };
-       }
-       const t = 1 - (act.left-1)/Math.max(1, act.duration);
-       const te = act.easing(t);
-       node.x = act.from.x + (act.to.x - act.from.x) * te;
-       node.y = act.from.y + (act.to.y - act.from.y) * te;
-     };
-     act.onend = ()=>{ node.x = act.to.x; node.y = act.to.y; };
-     return this._push(act);
-   }
-
-  scaleTo(sx,sy,frames,easing){ if (sy==null) sy=sx; return this._tween({scaleX:sx, scaleY:sy}, frames, ['scaleX','scaleY'], easing); }
-  //rotateTo(deg,frames,easing){ return this._tween({rotation:deg}, frames, ['rotation'], easing); }
-  rotateTo(deg,frames,easing){
-    // 通常の tween をキューに積む
-    this._tween({rotation:deg}, frames, ['rotation'], easing);
-    // 直近に push されたアクションを取り出し、終了時に正規化
-    const act = this.queue[this.queue.length - 1];
-    const prevOnend = act.onend;
-    act.onend = ()=>{
-      if (prevOnend) prevOnend();
-      const n = this.node;
-      let r = n.rotation % 360;
-      if (r < 0) r += 360;
-      n.rotation = r;
-    };
-    return this;
+    const act = this._mkTween({}, frames, ['x','y'], easing);
+    act.by = { x:+dx||0, y:+dy||0 }; // from を掴んだ瞬間に to を計算
+    return this._pushAct(act);
   }
-  
-  fadeTo(opacity,frames,easing){ return this._tween({opacity}, frames, ['opacity'], easing); }
 
-  _tick(e){ 
-    if (!this.queue.length) return; const head=this.queue[0]; 
-    if (head.left>0){ head.updater && head.updater(e); head.left--; } 
-    if (head.left<=0){
-      head.onend && head.onend();
+  // scaleTo(sx, sy, frames, easing)
+  scaleTo(sx, sy, frames, easing){
+    if (sy == null) sy = sx;
+    return this._pushAct(this._mkTween({ scaleX:+sx||0, scaleY:+sy||0 }, frames, ['scaleX','scaleY'], easing));
+  }
+
+  rotateTo(deg,frames,easing){ return this._pushAct(this._mkTween({rotation:+deg||0}, frames, ['rotation'], easing)); }
+
+  fadeTo(opacity,frames,easing){ return this._pushAct(this._mkTween({opacity:+opacity||0}, frames, ['opacity'], easing)); }
+
+  // ---- ループ駆動 ----
+  _tick(){
+    if (!this.queue.length) return;
+    const seg = this.queue[0]; // 同時実行アクションの束
+    // まず全アクションを1ステップ更新
+    for (const act of seg){
+      if (act.left > 0){
+        act.updater && act.updater();
+        act.left--;
+      }
+    }
+    // 束の中で「完了したもの」を確認
+    const allDone = seg.every(a => a.left <= 0);
+    if (allDone){
+      // onend を呼ぶ（順序はセグメント内の並び順）
+      for (const act of seg){ act.onend && act.onend(); }
+      // セグメントを外す
       this.queue.shift();
+      // ループ時は同じセグメントを末尾へ戻す（状態初期化）
       if (this.looping){
-        head.left = head.duration;     // ← 残りフレームをリセット
-        head.from = null;              // ← 次サイクル開始時に再キャプチャ
-        this.queue.push(head);
+        for (const act of seg){
+          act.left = act.duration;
+          act.from = null;
+          // moveBy は毎サイクル from 基準で再計算される（上の updater で対応済み）
+        }
+        this.queue.push(seg);
       }
     }
   }
 }
+
+
+
+// // -----------------------------
+// // Timeline (very small, tl-like)
+// // -----------------------------
+// // --- Easing functions ---
+// const Easing = {
+//   linear: t => t,
+//   easeInQuad: t => t*t,
+//   easeOutQuad: t => t*(2 - t),
+//   easeInOutQuad: t => (t < 0.5 ? 2*t*t : -1 + (4 - 2*t)*t),
+//   easeInCubic: t => t*t*t,
+//   easeOutCubic: t => (--t)*t*t + 1,
+//   easeInOutCubic: t => t < 0.5 ? 4*t*t*t : (t-1)*(2*t-2)*(2*t-2) + 1
+// };
+
+// class TimelineAction {
+//   constructor(duration, updater, onend){ this.left=duration|0; this.duration=duration|0; this.updater=updater; this.onend=onend||null; }
+// }
+// class Timeline {
+//   constructor(node){ this.node=node; this.queue=[]; this.looping=false; this._bind = (e)=> this._tick(e); node.on(Event.ENTER_FRAME, this._bind); }
+//   _push(act){ this.queue.push(act); return this; }
+//   clear(){ this.queue.length=0; return this; }
+//   loop(){ this.looping=true; return this; }
+//   unloop(){ this.looping=false; return this; }
+//   delay(frames){ return this._push(new TimelineAction(frames, ()=>{})); }
+//   then(fn){ return this._push(new TimelineAction(1, ()=>{}, fn)); }
+//   _tween(to, frames, props, easing='linear'){
+//     const node = this.node;
+//     const keys = props || Object.keys(to);
+//     const easeFn = (typeof easing === 'function') ? easing : (Easing[easing] || Easing.linear);
+//     const act = new TimelineAction(frames, null, null);
+//     act.to = Object.assign({}, to);
+//     act.keys = keys.slice();
+//     act.from = null; // lazily capture at action start
+//     act.easing = easeFn;
+//     act.updater = ()=>{
+//       if (!act.from){
+//         act.from = {};
+//         act.keys.forEach(k=> act.from[k] = node[k]);
+//       }
+//       const t = 1 - (act.left-1)/Math.max(1, act.duration);
+//       const te = act.easing(t);
+//       act.keys.forEach(k=>{
+//         const s = +act.from[k] || 0;
+//         const e = +act.to[k] || 0;
+//         node[k] = s + (e - s) * te;
+//       });
+//     };
+//     act.onend = ()=>{ act.keys.forEach((key)=> { node[key] = act.to[key]; }); };
+//     return this._push(act);
+//   }
+    
+//   moveTo(x,y,frames,easing){ return this._tween({x,y}, frames, null, easing); }
+
+//   moveBy(dx,dy,frames,easing){
+//      const act = new TimelineAction(frames, null, null);
+//      const node = this.node;
+//      act.keys = ['x','y'];
+//      act.by = { x: dx, y: dy };
+//      act.from = null; act.to = null;
+//      act.easing = (typeof easing === 'function') ? easing : (Easing[easing] || Easing.linear);
+//      act.updater = ()=>{
+//        if (!act.from){
+//          act.from = { x: node.x, y: node.y };
+//          act.to   = { x: act.from.x + act.by.x, y: act.from.y + act.by.y };
+//        }
+//        const t = 1 - (act.left-1)/Math.max(1, act.duration);
+//        const te = act.easing(t);
+//        node.x = act.from.x + (act.to.x - act.from.x) * te;
+//        node.y = act.from.y + (act.to.y - act.from.y) * te;
+//      };
+//      act.onend = ()=>{ node.x = act.to.x; node.y = act.to.y; };
+//      return this._push(act);
+//    }
+
+//   scaleTo(sx,sy,frames,easing){ if (sy==null) sy=sx; return this._tween({scaleX:sx, scaleY:sy}, frames, ['scaleX','scaleY'], easing); }
+//   //rotateTo(deg,frames,easing){ return this._tween({rotation:deg}, frames, ['rotation'], easing); }
+//   rotateTo(deg,frames,easing){
+//     // 通常の tween をキューに積む
+//     this._tween({rotation:deg}, frames, ['rotation'], easing);
+//     // 直近に push されたアクションを取り出し、終了時に正規化
+//     const act = this.queue[this.queue.length - 1];
+//     const prevOnend = act.onend;
+//     act.onend = ()=>{
+//       if (prevOnend) prevOnend();
+//       const n = this.node;
+//       let r = n.rotation % 360;
+//       if (r < 0) r += 360;
+//       n.rotation = r;
+//     };
+//     return this;
+//   }
+  
+//   fadeTo(opacity,frames,easing){ return this._tween({opacity}, frames, ['opacity'], easing); }
+
+//   _tick(e){ 
+//     if (!this.queue.length) return; const head=this.queue[0]; 
+//     if (head.left>0){ head.updater && head.updater(e); head.left--; } 
+//     if (head.left<=0){
+//       head.onend && head.onend();
+//       this.queue.shift();
+//       if (this.looping){
+//         head.left = head.duration;     // ← 残りフレームをリセット
+//         head.from = null;              // ← 次サイクル開始時に再キャプチャ
+//         this.queue.push(head);
+//       }
+//     }
+//   }
+// }
 
 
 // =============================
@@ -1744,7 +1905,7 @@ if (!Object.getOwnPropertyDescriptor(Node.prototype,'touchEnabled')){
     set(v){ this._touchEnabled = !!v; this._element.style.pointerEvents = this._touchEnabled ? 'auto' : 'none'; }
   });
 }
-export { Easing };
+// export { Easing };
 export default { Core, Scene, Group, Entity, Sprite, Label, Splite, Game, Event, TileMap, Rect, Circle, loadGoogleFont };
 
 // =============================
