@@ -1166,9 +1166,9 @@ export class StatusBar extends Group {
   _layoutGauge(){
     this.bg.width = this._w;  this.bg.height = this._h;
     this.bar.height = Math.max(2, this._h - this.padding*2);
-    this.bar.y = this.padding;
-    this.bar.x = this.padding;
-    this.bar.defaultX = this.padding;
+    this.bar.y = 0;//this.padding;
+    this.bar.x = 0;//this.padding;
+    this.bar.defaultX = this.bar.x;
     if (this.valueLabel){
       this.valueLabel.x = 0;
       this.valueLabel.y = Math.round((this._h - this.valueLabel.height)/2) - 1;
