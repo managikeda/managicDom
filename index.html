@@ -46,10 +46,10 @@
         './image/player.png',
         './image/chara1.png',
         './image/chara3.png',
-        './image/sd/elf_ranger.png',
-        './image/sd/bg_forest_elf.png',
-        './image/sd/bg_dangeon01.png',
-        './image/sd/bg_dangeon02.png',
+        './assets/bg/bg_forest_elf.png',
+        './assets/bg/bg_dangeon01.png',
+        './assets/bg/bg_dangeon02.png',
+        './assets/bg/bg_forestMakai.png',
         './assets/chara/chara_elfRanger_default.png',
         './assets/chara/chara_elfRanger_smile.png',
         './assets/chara/chara_humKnight_default.png',
@@ -383,7 +383,7 @@
 
         //背景イメージ
         const bg = new Sprite(1536, 1023);//832, 1216
-        bg.image = core.assets['./image/sd/bg_dangeon02.png'];
+        bg.image = core.assets['./assets/bg/bg_forestMakai.png'];
         bg.y = -1023*0.2;
         bg.x = -1536*0.2;
         bg.scaleX = 0.6;
@@ -399,9 +399,9 @@
         // charaimage.scaleY = 0.5;
         // scene.addChild(charaimage);
 
-        const elf = new CharSprite('behimos', { baseDir:'./assets/chara', width:512, height:768, fit:true });
-        elf.x = core.width/2-elf.width/2; elf.y = 0;
-        scene.addChild(elf);
+        const chara = new CharSprite('behimos', { baseDir:'./assets/chara', width:512, height:768, fit:true });
+        chara.x = core.width/2-chara.width/2; chara.y = 0;
+        scene.addChild(chara);
 
         const player = new Sprite(32, 32);
         player.image = core.assets['./image/chara1.png'];
@@ -431,7 +431,7 @@
       };
       scene.addChild(player);
       player.ontouchend = () => {
-        elf.setDiff('smile');
+        chara.setDiff('smile');
       };
 
       const enemy = new Sprite(32, 32);
@@ -440,8 +440,8 @@
       enemy.y = 15;
       scene.addChild(enemy);
       enemy.ontouchend = () => {
-        elf.showEmotion('💡', { anim:'pop' });
-        elf.animShake(8, 6);
+        chara.showEmotion('💡', { anim:'pop' });
+        chara.animShake(8, 6);
       };
 
       const enemy2 = new Sprite(32, 32);
@@ -451,10 +451,10 @@
       scene.addChild(enemy2);
 
       enemy2.ontouchend = () => {
-        scene.tl.delay(5).then(()=> elf.animSlideInLeft())
-        .delay(30).then(()=> elf.animAttack())
-        .delay(30).then(()=> elf.animDamaged())
-        .delay(30).then(()=> elf.animSlideOutRight(80, 18));
+        scene.tl.delay(5).then(()=> chara.animSlideInTop())
+        .delay(30).then(()=> chara.animAttack())
+        .delay(30).then(()=> chara.animDamaged())
+        .delay(30).then(()=> chara.animSlideOutTop(80, 18));
         //画像を追加読み込みして切り替え
         // core.prefetch(['./image/chara6.png']).then(()=>{
         //   console.log('prefetch done');

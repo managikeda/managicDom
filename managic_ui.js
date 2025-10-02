@@ -813,13 +813,13 @@ export class CharSprite extends Group {
       this._emo = sp;
     } else {
       const lb = new Label(String(what));
-      lb.font = 'bold 28px system-ui, sans-serif';
+      lb.font = 'bold 40px system-ui, sans-serif';
       lb.color = '#fff';
       lb._element.style.textShadow = '0 2px 8px rgba(0,0,0,.5)';
       lb.fitToTextWidth = true;
       this._emo = lb;
     }
-    // アイコン
+    // アイコン 💢🩷💡💔💕✨🔥💧🩸💀😡😠🤢💰🍖🍔🌐❄🎃👻🎄🎁🎖️🔊🔇🔔
     this.addChild(this._emo);
     // const fw = this.width  || this._w || 0;
     // const fh = this.height || this._h || 0;
@@ -836,8 +836,9 @@ export class CharSprite extends Group {
     const dur = opt.duration | 0 || 24;
     switch (opt.anim) {
       case 'pop':
-        this._emo.scaleX = this._emo.scaleY = 2;
+        this._emo.scaleX = this._emo.scaleY = 1;
         this._emo.opacity = 0;
+        this._emo.y += 50;
         this._emo.tl.fadeTo(1, 6).and().moveBy(0, -50, 6)
         .delay(30)
         .moveBy(0,-50,6).and().fadeTo(0,6);
@@ -847,12 +848,14 @@ export class CharSprite extends Group {
           .moveBy(0, -12, dur / 3)
           .moveBy(0, 12, dur / 3)
           .moveBy(0, -6, dur / 6)
-          .moveBy(0, 6, dur / 6);
+          .moveBy(0, 6, dur / 6)
+          .then(()=> this.hideEmotion());
         break;
       case 'shake':
         for (let i = 0; i < 4; i++) {
           this._emo.tl.moveBy(3, 0, 2).moveBy(-6, 0, 4).moveBy(3, 0, 2);
         }
+        this.hideEmotion();
         break;
       default:
         break;
@@ -907,6 +910,26 @@ export class CharSprite extends Group {
   }
   animSlideOutRight(dist = 80, frames = 18) {
     this.tl.moveBy(dist, 0, frames).and().fadeTo(0, frames);
+    return this;
+  }
+  animSlideInBottom(dist = 80, frames = 18) {
+    this.moveBy(0, dist);
+    this.opacity = 0.001;
+    this.tl.moveBy(0, -dist, frames).and().fadeTo(1, frames);
+    return this;
+  }
+  animSlideInTop(dist = 120, frames = 18) {
+    this.moveBy(0, -dist);
+    this.opacity = 0.001;
+    this.tl.moveBy(0, dist, frames).and().fadeTo(1, frames);
+    return this;
+  }
+  animSlideOutBottom(dist = 80, frames = 18) {
+    this.tl.moveBy(0, dist, frames).and().fadeTo(0, frames);
+    return this;
+  }
+  animSlideOutTop(dist = 120, frames = 18) {
+    this.tl.moveBy(0, -dist, frames).and().fadeTo(0, frames);
     return this;
   }
 
