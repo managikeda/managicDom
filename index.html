@@ -18,7 +18,7 @@
   <script type="module">
     // import { Core, Scene, FrameOverlay, Sprite, Label, loadGoogleFont, TileMap, Rect, Circle } from 'managic';
     import { Core, Scene, Sprite, Label, loadGoogleFont, TileMap, Rect, Circle } from './managic_dom.js';
-    import { FrameWindow, CharSprite, UIButton, LabelArea, FrameOverlay } from './managic_ui.js';
+    import { FrameWindow, CharSprite, UIButton, LabelArea, StatusBar, FrameOverlay } from './managic_ui.js';
 
     // --- google fontをプリロード ---
     const FONTS = [
@@ -431,7 +431,10 @@
       };
       scene.addChild(player);
       player.ontouchend = () => {
-        chara.setDiff('smile');
+        //hpBar.setValue(85, true);
+        hpBar.addValue(-15, true);
+        life.addValue(1, true);
+        //chara.setDiff('smile');
       };
 
       const enemy = new Sprite(32, 32);
@@ -509,6 +512,43 @@
           la.setText('刃を抜くつもりはない……まだな。だが、お前が友か敵か、自然を敬う心を持つのかどうか、それを見極めるのは今この瞬間だ。\n' +
             '――答えろ。なぜ、この森に来た？');
         };
+
+
+        // 1) HPゲージ
+        const hpBar = new StatusBar('gauge', {
+          x: core.width-220-20, y: 16,
+          width: 220, height: 18,
+          label: 'HP',
+          bgColor: '#222',
+          barColor: '#e74c3c',
+          radius: 8,
+          showValue: true,
+          max: 120, value: 120
+        });
+        scene.addChild(hpBar);
+
+        // ダメージを受けた
+        // hpBar.setValue(85, true);   // アニメ付きで 85/120 に
+        // // 回復
+        // hpBar.addValue(+10, true);  // 95/120
+
+
+        // 2) 残機やスタミナの“個数”表示
+        const life = new StatusBar('tokens', {
+          x: core.width-240, y: 46,
+          label: 'LIFE',
+          tokenSize: 22,
+          symbolFilled: '🩷',
+          symbolEmpty: '♡',
+          spacing: 6,
+          perRow: 10,        // 行折返ししたい場合
+          max: 5, value: 3
+        });
+        scene.addChild(life);
+
+        // 1つ消費
+        //life.addValue(-1, true);    // 🩷🩷♡♡♡
+
 
         scene.on('touchend', () => {
           core.pushScene(createPushedScene());

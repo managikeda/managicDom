@@ -1030,3 +1030,220 @@ export class CharSprite extends Group {
     this.body.y = -(Math.round((natH * s) / 2));
   }
 }
+
+export class StatusBar extends Group {
+  /**
+   * @param {'gauge'|'tokens'} type
+   * @param {object} opt
+   *   共通: { width,height, x,y, label, labelAlign:'left'|'top'|'right'|'bottom', font, color }
+   *   値:   { max:100, value:100, animateFrames:8 }
+   *   ゲージ: { bgColor:'#333', barColor:'#e33', border:'1px solid #000', radius:6, padding:4, showValue:true }
+   *   トークン:{ symbolFilled:'🩷', symbolEmpty:'♡', tokenSize:24, spacing:4, perRow:Infinity }
+   */
+  constructor(type='gauge', opt={}){
+    super();
+    this.type = type;
+
+    // ---- 共通設定 ----
+    this._w = opt.width  || 200;
+    this._h = opt.height || (type==='gauge' ? 20 : 28);
+    this.width  = this._w;
+    this.height = this._h;
+    if (opt.x!=null) this.x = opt.x|0;
+    if (opt.y!=null) this.y = opt.y|0;
+
+    this.max   = (opt.max!=null ? +opt.max : 100);
+    this.value = (opt.value!=null ? +opt.value : this.max);
+    this.animateFrames = (opt.animateFrames!=null ? +opt.animateFrames : 8);
+
+    // ラベル（“何のバーか”の説明）
+    this.label = new Label(opt.label || '');
+    this.label.font = opt.font || 'bold 14px system-ui, sans-serif';
+    this.label.color = opt.color || '#fff';
+    this.label._element.style.pointerEvents = 'none';
+    this.addChild(this.label);
+
+    this.labelAlign = opt.labelAlign || 'left';
+
+    // ---- ゲージ型UI ----
+    if (this.type === 'gauge'){
+      this.padding = (opt.padding!=null ? +opt.padding : 4);
+
+      this.bg = new Entity(this._w, this._h);
+      const bgst = this.bg._element.style;
+      bgst.boxSizing = 'border-box';
+      bgst.background = opt.bgColor || '#2b2b2b';
+      bgst.border = opt.border || '1px solid rgba(0,0,0,.6)';
+      bgst.borderRadius = (opt.radius!=null ? opt.radius|0 : 6) + 'px';
+      this.addChild(this.bg);
+
+      // 内側のバー（width を伸縮）
+      const innerH = Math.max(2, this._h - this.padding*2);
+      this.bar = new Entity(Math.max(0, this._w - this.padding*2), innerH);
+      const brst = this.bar._element.style;
+      brst.left = this.padding + 'px';
+      brst.top  = this.padding + 'px';
+      brst.background = opt.barColor || '#e33';
+      brst.borderRadius = (opt.radius!=null ? Math.max(0, (opt.radius|0)-1) : 5) + 'px';
+      brst.transition = ''; // アニメは tl を使う
+      this.addChild(this.bar);
+
+      // 数値のオーバーレイ表示（任意）
+      this.showValue = opt.showValue !== false;
+      if (this.showValue){
+        this.valueLabel = new Label('');
+        this.valueLabel.font = opt.font || 'bold 12px system-ui, sans-serif';
+        this.valueLabel.color = opt.valueColor || '#fff';
+        this.valueLabel._element.style.textShadow = '0 1px 2px rgba(0,0,0,.55)';
+        this.addChild(this.valueLabel);
+      }
+
+      this._layoutGauge();
+      this._renderGauge(false);
+    }
+    // ---- トークン型UI ----
+    else {
+      this.symbolFilled = opt.symbolFilled || '🩷';
+      this.symbolEmpty  = (opt.symbolEmpty  != null ? opt.symbolEmpty : '');
+      this.tokenSize = (opt.tokenSize!=null ? +opt.tokenSize : 24);
+      this.spacing   = (opt.spacing!=null ? +opt.spacing : 4);
+      this.perRow    = (opt.perRow!=null ? +opt.perRow : Infinity);
+
+      this.tokensGroup = new Group();
+      this.addChild(this.tokensGroup);
+
+      this._layoutTokens();
+      this._renderTokens(false);
+    }
+
+    // label の初期配置
+    this._layoutLabel();
+  }
+
+  // ================= 公開 API ================
+  setMax(max){ this.max = Math.max(0, +max||0); this.value = Math.min(this.value, this.max); this._render(true); return this; }
+  setValue(v, animate=true){ this.value = Math.max(0, Math.min(+v||0, this.max)); this._render(animate); return this; }
+  addValue(d, animate=true){ return this.setValue(this.value + (+d||0), animate); }
+  setLabel(text){ this.label.text = text||''; this._layoutLabel(); return this; }
+
+  setColors({ bgColor, barColor }={}){
+    if (this.type==='gauge'){
+      if (bgColor!=null) this.bg._element.style.background = bgColor;
+      if (barColor!=null) this.bar._element.style.background = barColor;
+    }
+    return this;
+  }
+
+  // ================= 内部：レイアウト =================
+  _layoutLabel(){
+    const pad = 4;
+    switch (this.labelAlign){
+      case 'top':
+        this.label.x = 0;
+        this.label.y = -(this.label.height + pad);
+        break;
+      case 'right':
+        this.label.x = this._w + pad;
+        this.label.y = Math.round((this._h - this.label.height)/2);
+        break;
+      case 'bottom':
+        this.label.x = 0;
+        this.label.y = this._h + pad;
+        break;
+      default: // left
+        this.label.x = -(this.label.width + pad);
+        this.label.y = Math.round((this._h - this.label.height)/2);
+        break;
+    }
+  }
+
+  _render(animate){
+    if (this.type==='gauge') this._renderGauge(animate);
+    else this._renderTokens(animate);
+  }
+
+  // ---------- ゲージ ----------
+  _layoutGauge(){
+    this.bg.width = this._w;  this.bg.height = this._h;
+    this.bar.height = Math.max(2, this._h - this.padding*2);
+    this.bar.y = this.padding;
+    this.bar.x = this.padding;
+    this.bar.defaultX = this.padding;
+    if (this.valueLabel){
+      this.valueLabel.x = 0;
+      this.valueLabel.y = Math.round((this._h - this.valueLabel.height)/2) - 1;
+      this.valueLabel.width = this._w;
+      this.valueLabel.textAlign = 'center';
+    }
+  }
+
+  _renderGauge(animate){
+    const usableW = Math.max(0, this._w - this.padding*2);
+    const ratio   = (this.max>0 ? this.value/this.max : 0);
+    const targetW = Math.round(usableW * Math.max(0, Math.min(1, ratio)));
+    const frames  = (animate ? Math.max(1, this.animateFrames) : 1);
+
+    // width を補間
+    if (animate){
+      this.bar.tl.clear();
+      if (typeof this.bar.tl._tween === 'function') {
+        this.bar.tl.scaleTo(targetW/usableW, 1, frames).and().moveTo((this.bar.defaultX + (targetW-usableW)/2), 0, frames);
+      } else {
+        this.bar.width = targetW
+      }
+    } else {
+      // tl が無い/animate=false の場合は即時反映
+      this.bar.width = targetW;
+    }
+
+    if (this.valueLabel){
+      this.valueLabel.text = `${this.value}/${this.max}`;
+    }
+  }
+
+  // ---------- トークン ----------
+  _layoutTokens(){
+    // tokensGroup の原点に並べる
+    this.tokensGroup.x = 0;
+    this.tokensGroup.y = 0;
+  }
+
+  _renderTokens(animate){
+    // 子を作り直す（シンプルで安定）
+    const g = this.tokensGroup;
+    while (g.childNodes.length) g.removeChild(g.childNodes[0]);
+
+    const filled = Math.max(0, Math.min(this.value|0, this.max|0));
+    const empty  = Math.max(0, (this.max|0) - filled);
+    const symF = this.symbolFilled, symE = this.symbolEmpty;
+    const size = this.tokenSize|0, gap = this.spacing|0, per = (this.perRow|0) || Infinity;
+
+    let row=0, col=0;
+    const make = (ch, idx, isFilled)=>{
+      const lb = new Label(ch);
+      lb.font = `bold ${size}px system-ui, sans-serif`;
+      lb.fitToTextWidth = true;
+      lb.y = row * (size + gap);
+      lb.x = col * (size + gap);
+      g.addChild(lb);
+
+      // ちょっとしたアニメ：増加時はポップ、減少時はフェード
+      if (animate){
+        lb.opacity = 0;
+        lb.scaleX = lb.scaleY = 0.6;
+        lb.tl.fadeTo(1, 6).and().scaleTo(1, 1, 8);
+      }
+      col++;
+      if (col>=per){ col=0; row++; }
+    };
+
+    for (let i=0;i<filled;i++) make(symF, i, true);
+    for (let i=0;i<empty;i++)  if (symE) make(symE, filled+i, false);
+
+    // 高さを自動で更新（複数行のとき）
+    const rows = row + (col>0?1:0);
+    this.height = (rows>0 ? rows*(size+gap)-gap : size);
+    this._h = this.height;
+  }
+}
+
