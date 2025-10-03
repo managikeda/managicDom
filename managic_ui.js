@@ -2,6 +2,11 @@
 import { Core, Group, Entity, Sprite, Label, Event } from './managic_dom.js';
 
 /**
+ * このファイルに含まれるクラス名一覧
+ * FrameWindow, CharSprite, UIButton, LabelArea, StatusBar, FrameOverlay, AnimatedCover
+ */
+
+/**
  * FrameWindow
  * - 背景色/枠線/角丸などをプリセットから簡単適用
  * - サイズ変更・パディング・内容物の自動配置（contentコンテナ）付き
@@ -1247,3 +1252,370 @@ export class StatusBar extends Group {
   }
 }
 
+
+// =============================
+// AnimatedCover — シーンや任意領域を覆って演出フラッシュ/暗転などを再生
+// =============================
+export class AnimatedCover extends Entity {
+  /**
+   * @param {number} [width]   覆いの幅（未指定なら Core の幅）
+   * @param {number} [height]  覆いの高さ（未指定なら Core の高さ）
+   * @param {object} [opts]
+   *   - color:        '#000' | 'rgba(0,0,0,.5)' など（既定: 黒 0.7）
+   *   - blendMode:    CSS mix-blend-mode（'multiply' 'screen' 等）
+   *   - zIndex:       前面表示したい場合に数値で（既定: 9998）
+   *   - autoMount:    true なら作成時に rootScene へ追加（既定 true）
+   * 
+  1) シーン全体を赤フラッシュ（被ダメ）
+  AnimatedCover.play('hit', { frames: 12, peak: 0.7 });
+
+  2) 白フラッシュ（与ダメ）
+  scene.tl.delay(30).then(()=> AnimatedCover.play('attack', { frames: 10, peak: 0.6 }));
+
+  3) 暗転 → 1秒置いてフェードアウト
+  scene.tl.delay(60).then(()=>{
+    const cov = new AnimatedCover(); // 自動で rootScene に追加＆フィット
+    cov.bringToFront().play('darken', { to: 1, frames: 20, keep: true, autoRemove:false });
+    scene.tl.delay(30).then(()=> cov.play('fadeout', { frames: 20 })); // remove は自動
+  });
+
+  4) 任意のスプライト領域だけ点滅
+  AnimatedCover.playOnNode(playerSprite, 'blink', { times: 3, frames: 12, peak: 0.8, pad: 4 });
+   */
+  constructor(width, height, opts={}){
+    const core = Core.instance;
+    const W = (width  != null) ? width  : (core ? core.width  : 0);
+    const H = (height != null) ? height : (core ? core.height : 0);
+    super(W, H);
+
+    this._element.classList.add('enchant-animated-cover');
+    const st = this._element.style;
+    st.pointerEvents = 'none';
+    st.left = '0px';
+    st.top  = '0px';
+    st.boxSizing = 'border-box';
+    st.zIndex = String(opts.zIndex != null ? opts.zIndex : 9998);
+
+    this.setColor(opts.color || 'rgba(0,0,0,0.7)');
+    if (opts.blendMode) st.mixBlendMode = opts.blendMode;
+
+    // 初期は非表示
+    this.opacity = 0;
+
+    // デフォはシーン全体に追従
+    if (opts.autoMount !== false && core && core.currentScene){
+      core.currentScene.addChild(this);
+      this.fitToScene();
+    }
+  }
+
+  // ---- 配置ヘルパ ----
+  /** 現在の Scene の外寸にフィット（Core を参照） */
+  fitToScene(){
+    const core = Core.instance;
+    if (!core) return this;
+    this.width = core.width; this.height = core.height;
+    this.x = 0; this.y = 0;
+    return this;
+  }
+
+  /**
+   * 任意ノード（Sprite/Label/Entity）の矩形を覆う
+   * 親は Scene 推奨（座標系が安定する）
+   */
+  fitToNode(node, pad=0){
+    const r = node.getBoundingRect();
+    this.width  = Math.max(0, Math.round(r.width  + pad*2));
+    this.height = Math.max(0, Math.round(r.height + pad*2));
+    this.x = Math.round(r.x - pad);
+    this.y = Math.round(r.y - pad);
+    return this;
+  }
+
+  /** 単色/アルファをまとめて設定 */
+  setColor(color){
+    this._element.style.background = color || 'transparent';
+    return this;
+  }
+
+  /** 最前面に */
+  bringToFront(){
+    const core = Core.instance;
+    if (core && core._stage){
+      core._stage.appendChild(this._element);
+    }
+    return this;
+  }
+
+  // ---- 演出再生 ----
+  /**
+   * @param {'hit'|'attack'|'darken'|'lighten'|'blink'|'fadein'|'fadeout'} type
+   * @param {object} [opt]
+   *   - frames:      速度（既定: 12）
+   *   - keep:        true なら最後の状態を保持（暗転など）
+   *   - color:       覆い色の上書き
+   *   - times:       blink の回数（既定 2）
+   *   - peak:        hit/attack の最大不透明度（0〜1, 既定 0.6）
+   *   - autoRemove:  true なら終了後に remove（既定 true / keep=true の時は false 推奨）
+   */
+  play(type='hit', opt={}){
+    const frames = (opt.frames|0) || 12;
+    const peak   = (opt.peak!=null) ? +opt.peak : 0.6;
+    const keep   = !!opt.keep;
+    const autoRemove = (opt.autoRemove!==false); // 既定で消す
+    if (opt.color) this.setColor(opt.color);
+
+    // 既存のアニメはキャンセル
+    this.tl.clear();
+
+    switch(type){
+      case 'hit':      // 被ダメ: 赤フラッシュ
+        this.setColor(opt.color || 'rgba(255,0,0,1)');
+        this.opacity = 0;
+        this.tl.fadeTo(peak, Math.max(1, frames/3))
+               .fadeTo(0,    Math.max(1, frames/3));
+        break;
+
+      case 'attack':   // 与ダメ: 白フラッシュ
+        this.setColor(opt.color || 'rgba(255,255,255,1)');
+        this.opacity = 0;
+        this.tl.fadeTo(peak, Math.max(1, frames/3))
+               .fadeTo(0,    Math.max(1, frames/3));
+        break;
+
+      case 'darken':   // 暗転（そのまま維持 or 自動解除）
+        this.setColor(opt.color || 'rgba(0,0,0,1)');
+        this.opacity = 0;
+        this.tl.fadeTo( (opt.to!=null? +opt.to : 1), frames );
+        if (!keep && autoRemove){
+          this.tl.delay(1).fadeTo(0, frames).then(()=> this.remove());
+        }
+        break;
+
+      case 'lighten':  // 画面が白く（フェード）
+        this.setColor(opt.color || 'rgba(255,255,255,1)');
+        this.opacity = 0;
+        this.tl.fadeTo( (opt.to!=null? +opt.to : 1), frames );
+        if (!keep && autoRemove){
+          this.tl.delay(1).fadeTo(0, frames).then(()=> this.remove());
+        }
+        break;
+
+      case 'blink': {  // 点滅（任意回数）
+        const times = Math.max(1, opt.times|0 || 2);
+        this.opacity = 0;
+        for (let i=0;i<times;i++){
+          this.tl.fadeTo(peak, Math.max(1, frames/3))
+                 .fadeTo(0,    Math.max(1, frames/3));
+        }
+        break;
+      }
+
+      case 'fadein':   // 黒や白の「幕入り」
+        this.opacity = 0;
+        this.tl.fadeTo( (opt.to!=null? +opt.to : 1), frames );
+        break;
+
+      case 'fadeout':  // 「幕明け」
+        this.opacity = 1;
+        this.tl.fadeTo(0, frames);
+        break;
+
+      default:
+        // 何も指定が無ければ軽い黒フラッシュ
+        this.setColor('rgba(0,0,0,1)');
+        this.opacity = 0;
+        this.tl.fadeTo(peak, Math.max(1, frames/3))
+               .fadeTo(0,    Math.max(1, frames/3));
+        break;
+    }
+
+    if (!keep && autoRemove){
+      this.tl.then(()=> this.remove());
+    }
+    return this;
+  }
+
+  // ---- ショートカット ----
+  /** シーン全体に被せて type を再生して即返す */
+  static play(type='hit', opt={}){
+    const ac = new AnimatedCover(undefined, undefined, { autoMount:true });
+    ac.fitToScene().bringToFront().play(type, opt);
+    return ac;
+  }
+
+  /** 任意ノード範囲に被せて type を再生（親は currentScene） */
+  static playOnNode(node, type='hit', opt={}){
+    const core = Core.instance;
+    const parent = core?.currentScene;
+    const ac = new AnimatedCover(1,1, { autoMount:false });
+    if (parent) parent.addChild(ac);
+    ac.fitToNode(node, opt.pad|0 || 0).bringToFront().play(type, opt);
+    return ac;
+  }
+}
+
+
+// =============================
+// Particle — 1つのパーティクル（Spriteシート or CSS図形）
+// =============================
+export class Particle extends Group {
+  /**
+   * @param {object} opt
+   *  位置/物理: { x,y, vx,vy, ax,ay, gravity }
+   *  寿命: { life: 30 } // フレーム数
+   *  表示共通: { scaleFrom:1, scaleTo:1, opacityFrom:1, opacityTo:0, rotationFrom:0, rotationTo:0 }
+   *  種別:
+   *    type:'sprite' のとき:
+   *      { type:'sprite', image, fw, fh, frames, fps }
+   *        - image: URL or HTMLImageElement
+   *        - fw, fh: 1フレームの幅/高さ
+   *        - frames: 再生フレーム数（配列も可: [[ix,iy], ...]）
+   *        - fps: アニメ速度（省略時 life に均等割り）
+   *    type:'css' のとき:
+   *      { type:'css', shape:'circle'|'rect'|'pill'|'diamond', size:12, color:'#fff', border, shadow, className }
+   */
+  constructor(opt = {}) {
+    super();
+    // ---- 物理/寿命 ----
+    this.life = (opt.life|0) || 30;
+    this.age = 0;
+
+    this.vx = +opt.vx || 0;
+    this.vy = +opt.vy || 0;
+    this.ax = +opt.ax || 0;
+    this.ay = +opt.ay || 0;
+    this.gravity = +opt.gravity || 0;
+
+    // ---- 変化 ----
+    this.scaleFrom   = (opt.scaleFrom!=null)? +opt.scaleFrom : 1;
+    this.scaleTo     = (opt.scaleTo  !=null)? +opt.scaleTo   : 1;
+    this.opacityFrom = (opt.opacityFrom!=null)? +opt.opacityFrom : 1;
+    this.opacityTo   = (opt.opacityTo  !=null)? +opt.opacityTo   : 0;
+    this.rotationFrom= (opt.rotationFrom!=null)? +opt.rotationFrom: 0;
+    this.rotationTo  = (opt.rotationTo  !=null)? +opt.rotationTo  : 0;
+
+    // ---- 位置 ----
+    if (opt.x!=null) this.x = +opt.x;
+    if (opt.y!=null) this.y = +opt.y;
+
+    // ---- 見た目（sprite or css）----
+    this.kind = opt.type || 'css';
+    if (this.kind === 'sprite') {
+      // スプライトシート方式
+      const fw = opt.fw|0 || 16, fh = opt.fh|0 || 16;
+      const img = opt.image;
+      this.view = new Sprite(fw, fh);
+      this.view.image = img;
+      // frames 指定（数 or 配列）
+      if (Array.isArray(opt.frames)) {
+        this.view.frames = opt.frames;
+        this._totalFrames = opt.frames.length;
+      } else {
+        this._totalFrames = (opt.frames|0) || Math.max(1, Math.floor((this.view._sheetWidth/fw)*(this.view._sheetHeight/fh)));
+      }
+      this._animFps = opt.fps || null; // null の場合は life で均等割り
+      this.addChild(this.view);
+    } else {
+      // CSS 図形方式
+      const size = opt.size|0 || 12;
+      this.view = new Entity(size, size);
+      const st = this.view._element.style;
+      st.background = opt.color || '#fff';
+      st.border     = opt.border || '';
+      st.boxShadow  = opt.shadow || '';
+      if (opt.className) this.view._element.classList.add(opt.className);
+
+      const shape = (opt.shape||'circle');
+      switch(shape){
+        case 'pill':    st.borderRadius='999px'; st.width=size*2+'px'; this.view.width=size*2; break;
+        case 'diamond': st.transform = 'rotate(45deg)'; break;
+        case 'rect':    st.borderRadius='2px'; break;
+        default:        st.borderRadius='50%'; // circle
+      }
+      this.addChild(this.view);
+    }
+
+    // 初期状態を適用
+    this.scaleX = this.scaleY = this.scaleFrom;
+    this.opacity = this.opacityFrom;
+    this.rotation = this.rotationFrom;
+
+    // フレーム更新
+    this.on(Event.ENTER_FRAME, this._step.bind(this));
+  }
+
+  _step(){
+    const t = this.age / Math.max(1, this.life); // 0..1
+    // 物理
+    this.vx += this.ax;
+    this.vy += (this.ay + this.gravity);
+    this.x  += this.vx;
+    this.y  += this.vy;
+
+    // 変化（線形）
+    this.scaleX = this.scaleY = this._lerp(this.scaleFrom, this.scaleTo, t);
+    this.opacity = this._lerp(this.opacityFrom, this.opacityTo, t);
+    this.rotation = this._lerp(this.rotationFrom, this.rotationTo, t);
+
+    // スプライトアニメ
+    if (this.kind === 'sprite' && this._totalFrames){
+      const fps = this._animFps || (this.life / this._totalFrames);
+      const frameIndex = Math.min(this._totalFrames - 1, Math.floor(this.age / Math.max(1, fps)));
+      this.view.frame = frameIndex;
+    }
+
+    this.age++;
+    if (this.age >= this.life){
+      this.remove();
+    }
+  }
+
+  _lerp(a,b,t){ return a + (b-a) * Math.max(0, Math.min(1, t)); }
+
+  // ========= static ヘルパ =========
+
+  /**
+   * クリック演出などに便利なバースト発生
+   * @param {Node} parent  追加先（Sceneや任意Group）
+   * @param {number} x     中心x
+   * @param {number} y     中心y
+   * @param {object} opt
+   *   { count, speedMin, speedMax, spread, gravity, css, sprite }
+   *   - spread: 放射角（度）。省略で360°
+   *   - css:   CSS 図形の共通オプション（color/size/shape等）
+   *   - sprite: スプライト方式の共通オプション（image, fw, fh, frames, fps）
+   *   - type: 'css'|'sprite'（省略時 'css'）
+   */
+  static burst(parent, x, y, opt={}){
+    const count = opt.count|0 || 16;
+    const speedMin = (opt.speedMin!=null)? +opt.speedMin : 2;
+    const speedMax = (opt.speedMax!=null)? +opt.speedMax : 5;
+    const spread = (opt.spread!=null)? +opt.spread : 360;
+    const g = (opt.gravity!=null)? +opt.gravity : 0.2;
+    const type = opt.type || 'css';
+
+    const baseAngle = Math.random()*360;
+    for (let i=0;i<count;i++){
+      const ang = (spread>=360)? (i*(360/count)) : (baseAngle + (Math.random()*spread - spread/2));
+      const spd = speedMin + Math.random()*(speedMax-speedMin);
+      const rad = ang * Math.PI/180;
+      const p = new Particle(Object.assign(
+        {
+          type,
+          x, y,
+          vx: Math.cos(rad)*spd,
+          vy: Math.sin(rad)*spd,
+          gravity: g,
+          life: 30 + (Math.random()*10|0),
+          scaleFrom: 1,
+          scaleTo: 0.6,
+          opacityFrom: 1,
+          opacityTo: 0
+        },
+        (type==='sprite' ? (opt.sprite||{}) : (opt.css||{}))
+      ));
+      parent.addChild(p);
+    }
+  }
+}

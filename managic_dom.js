@@ -872,6 +872,11 @@ export class Core extends EventTarget {
     }
     if (!node) node = this.currentScene;
     if (node) node.dispatchEvent(ev);
+    // 追加：Sceneにも常に同等イベントを通知（バブリング代替）
+    if (this.currentScene && node !== this.currentScene){
+      const ev2 = new Event(type); ev2.x=x; ev2.y=y; ev2.localX=x; ev2.localY=y;
+      this.currentScene.dispatchEvent(ev2);
+    }
   }
   _handlePointerDown = (e)=>{ if (e.button!==0) return; e.preventDefault(); this._mouseDown=true; this._dispatchTouchLike(Event.TOUCH_START, e.pageX, e.pageY); };
   _handlePointerMove = (e)=>{ if (!this._mouseDown) return; e.preventDefault(); this._dispatchTouchLike(Event.TOUCH_MOVE, e.pageX, e.pageY); };

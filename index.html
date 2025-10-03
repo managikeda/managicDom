@@ -18,7 +18,7 @@
   <script type="module">
     // import { Core, Scene, FrameOverlay, Sprite, Label, loadGoogleFont, TileMap, Rect, Circle } from 'managic';
     import { Core, Scene, Sprite, Label, loadGoogleFont, TileMap, Rect, Circle } from './managic_dom.js';
-    import { FrameWindow, CharSprite, UIButton, LabelArea, StatusBar, FrameOverlay } from './managic_ui.js';
+    import { FrameWindow, CharSprite, UIButton, LabelArea, StatusBar, FrameOverlay, AnimatedCover, Particle } from './managic_ui.js';
 
     // --- google fontをプリロード ---
     const FONTS = [
@@ -402,6 +402,9 @@
         const chara = new CharSprite('behimos', { baseDir:'./assets/chara', width:512, height:768, fit:true });
         chara.x = core.width/2-chara.width/2; chara.y = 0;
         scene.addChild(chara);
+        chara.body.ontouchend = (e) => {
+          
+        };
 
         const player = new Sprite(32, 32);
         player.image = core.assets['./image/chara1.png'];
@@ -430,7 +433,10 @@
         }
       };
       scene.addChild(player);
-      player.ontouchend = () => {
+      player.ontouchend = (e) => {
+        
+        // const ac = new AnimatedCover();
+        // ac.play('blink', {color:'rgba(255,255,255,1)', times: 4 });
         //hpBar.setValue(85, true);
         hpBar.addValue(-15, true);
         life.addValue(1, true);
@@ -445,6 +451,9 @@
       enemy.ontouchend = () => {
         chara.showEmotion('💡', { anim:'pop' });
         chara.animShake(8, 6);
+        const ac = new AnimatedCover();
+        ac.play('darken', { to: 1, frames: 20, keep: true, autoRemove:false });
+        //AnimatedCover.play('hit', { frames: 12, peak: 0.7 });
       };
 
       const enemy2 = new Sprite(32, 32);
@@ -550,8 +559,21 @@
         //life.addValue(-1, true);    // 🩷🩷♡♡♡
 
 
-        scene.on('touchend', () => {
-          core.pushScene(createPushedScene());
+        scene.on('touchend', (e) => {
+          Particle.burst(scene, e.x, e.y, {
+            type:'css',
+            count: 24,
+            speedMin: 2, speedMax: 6,
+            spread: 360,
+            gravity: 0.25,
+            css: {
+              shape: 'circle',
+              size: 8 + (Math.random()*6|0),
+              color: `hsl(${(Math.random()*360|0)}, 80%, 60%)`,
+              shadow: '0 0 8px rgba(255,255,255,.5)'
+            }
+          }); 
+          //core.pushScene(createPushedScene());
         });
 
         // frameを最前面へ（他のUI追加後）
