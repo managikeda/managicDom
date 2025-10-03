@@ -1,9 +1,11 @@
 // managic_ui.js — UI helpers for managic_dom.js (ESM, no dependencies)
-import { Core, Group, Entity, Sprite, Label, Event } from './managic_dom.js';
+import { Core, Group, Scene, Entity, Sprite, Label, Event } from './managic_dom.js';
 
 /**
  * このファイルに含まれるクラス名一覧
- * FrameWindow, CharSprite, UIButton, LabelArea, StatusBar, FrameOverlay, AnimatedCover
+ * FrameWindow, CharSprite, UIButton, 
+ * LabelArea, StatusBar, FrameOverlay, 
+ * AnimatedCover, LoadingScene
  */
 
 /**
@@ -1616,6 +1618,148 @@ export class Particle extends Group {
         (type==='sprite' ? (opt.sprite||{}) : (opt.css||{}))
       ));
       parent.addChild(p);
+    }
+  }
+}
+
+// =============================
+// LoadingScene — ensureAssets で追加読込＋バー表示＋次シーン遷移
+// =============================
+export class LoadingScene extends Scene {
+  /**
+   * @param {object} opts
+   *   - files: string[] | string    読み込みたい追加アセット
+   *   - next : function | string | Scene
+   *           関数: (core)=>Scene を返す / 文字列: グローバル関数名 / 直接 Scene
+   *   - label: 'Loading...'         表示テキスト
+   *   - barWidth, barHeight, barColor, barBgColor, barRadius
+   */
+  constructor(opts = {}) {
+    super();
+    this._files = [];
+    if (Array.isArray(opts.files)) this._files = opts.files.slice();
+    else if (typeof opts.files === 'string') this._files = [opts.files];
+
+    this._next = opts.next;
+    this._labelText = (opts.label != null) ? String(opts.label) : 'Loading...';
+
+    this.backgroundColor = 'rgba(0,0,0,0.75)';
+
+    // ラベル
+    this._label = new Label(this._labelText);
+    this._label.color = '#fff';
+    this._label.font  = 'bold 18px system-ui, sans-serif';
+    this.addChild(this._label);
+
+    // バー（枠＋中身）
+    const bw = (opts.barWidth|0)  || 260;
+    const bh = (opts.barHeight|0) || 14;
+    const radius = (opts.barRadius!=null ? opts.barRadius|0 : 7);
+
+    this._barBg = new Entity(bw, bh);
+    this._barBg.backgroundColor = opts.barBgColor || 'rgba(255,255,255,.15)';
+    this._barBg._element.style.borderRadius = radius + 'px';
+    this.addChild(this._barBg);
+
+    this._bar = new Entity(1, Math.max(2, bh-2));
+    this._bar.backgroundColor = opts.barColor || '#4FC3F7';
+    this._bar._element.style.left = '1px';
+    this._bar._element.style.top  = Math.round((bh - (bh-2))/2) + 'px';
+    this._bar._element.style.borderRadius = Math.max(0, radius-1) + 'px';
+    this.addChild(this._bar);
+
+    // パーセント表示（任意）
+    this._percent = new Label('0%');
+    this._percent.color = '#fff';
+    this._percent.font  = '12px system-ui, sans-serif';
+    this._percent.textAlign = 'center';
+    this.addChild(this._percent);
+
+    // レイアウト
+    this.on(Event.ENTER, ()=> this._layout());
+    this.on(Event.CORE_RESIZE, ()=> this._layout());
+
+    // 進捗（ensureAssets は Event.PROGRESS を emit する）
+    this.on(Event.PROGRESS, (e)=>{
+      // phase が 'runtime' のときだけ拾う（preload と区別）
+      if (e.phase && e.phase !== 'runtime') return;
+      const p = (e.total>0 ? (e.loaded/e.total) : 0);
+      this._setProgress(p);
+    });
+
+    // 読込開始
+    this.on(Event.ENTER, ()=> this._begin());
+  }
+
+  _layout(){
+    const core = Core.instance;
+    const W = core ? core.width  : (this.width||320);
+    const H = core ? core.height : (this.height||240);
+
+    // ラベル
+    this._label.width = W; this._label.height = 24;
+    this._label.x = 0; this._label.y = Math.round(H*0.5) - 40;
+    this._label.textAlign = 'center';
+
+    // バー中央
+    const bw = this._barBg.width, bh = this._barBg.height;
+    this._barBg.x = Math.round((W - bw)/2);
+    this._barBg.y = Math.round((H - bh)/2);
+    this._bar.x = this._barBg.x + 1;
+    this._bar.y = this._barBg.y + 1;
+
+    // パーセント
+    this._percent.width = W; this._percent.height = 14;
+    this._percent.x = 0; this._percent.y = this._barBg.y + bh + 10;
+    this._percent.textAlign = 'center';
+  }
+
+  _setProgress(p){
+    p = Math.max(0, Math.min(1, p));
+    const usable = this._barBg.width - 2;
+    this._bar.width = Math.max(1, Math.round(usable * p));
+    this._percent.text = Math.round(p*100) + '%';
+  }
+
+  async _begin(){
+    const core = Core.instance;
+    if (!core) return this._goNext();
+
+    if (!this._files || this._files.length === 0){
+      this._setProgress(1);
+      return this._goNext();
+    }
+
+    try{
+      // ensureAssets: まだ読み込まれていないものだけロード
+      await core.ensureAssets(this._files, { emitProgress: true });
+      this._setProgress(1);
+    }catch(err){
+      console.error('LoadingScene ensureAssets error:', err);
+      // エラーでも一旦先へ
+      this._setProgress(1);
+    }
+    this._goNext();
+  }
+
+  _goNext(){
+    const core = Core.instance;
+    if (!core){ return; }
+
+    let nextScene = null;
+    if (typeof this._next === 'function'){
+      nextScene = this._next(core);
+    } else if (typeof this._next === 'string' && typeof window !== 'undefined' && typeof window[this._next] === 'function'){
+      nextScene = window[this._next](core);
+    } else if (this._next && typeof this._next === 'object'){
+      nextScene = this._next;
+    }
+
+    if (nextScene instanceof Scene){
+      core.replaceScene(nextScene);
+    } else {
+      // 不正 or 未指定なら戻す
+      core.popScene();
     }
   }
 }

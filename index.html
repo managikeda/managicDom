@@ -18,7 +18,7 @@
   <script type="module">
     // import { Core, Scene, FrameOverlay, Sprite, Label, loadGoogleFont, TileMap, Rect, Circle } from 'managic';
     import { Core, Scene, Sprite, Label, loadGoogleFont, TileMap, Rect, Circle } from './managic_dom.js';
-    import { FrameWindow, CharSprite, UIButton, LabelArea, StatusBar, FrameOverlay, AnimatedCover, Particle } from './managic_ui.js';
+    import { FrameWindow, CharSprite, UIButton, LabelArea, StatusBar, FrameOverlay, AnimatedCover, Particle, LoadingScene } from './managic_ui.js';
 
     // --- google fontをプリロード ---
     const FONTS = [
@@ -46,14 +46,6 @@
         './image/player.png',
         './image/chara1.png',
         './image/chara3.png',
-        './assets/bg/bg_forest_elf.png',
-        './assets/bg/bg_dangeon01.png',
-        './assets/bg/bg_dangeon02.png',
-        './assets/bg/bg_forestMakai.png',
-        './assets/chara/chara_elfRanger_default.png',
-        './assets/chara/chara_elfRanger_smile.png',
-        './assets/chara/chara_humKnight_default.png',
-        './assets/chara/chara_behimos_default.png',
         './image/map1.png'
     ]);
 
@@ -353,10 +345,29 @@
 
         scene.on('touchend', () => {
           //次のステージで使う画像を事前に読み込む
-          core.prefetch(['./image/chara2.png', './image/chara5.png']).then(()=>{
-            console.log('prefetch done');
-            core.replaceScene(createGameScene());
-          });
+          // core.prefetch(['./image/chara2.png', './image/chara5.png']).then(()=>{
+          //   console.log('prefetch done');
+          //   core.replaceScene(createGameScene());
+          // });
+          // LoadingSceneを使った追加ロード
+          core.replaceScene(new LoadingScene({
+            files: [
+              './image/chara2.png',
+              './image/chara5.png',
+              './assets/bg/bg_forest_elf.png',
+              './assets/bg/bg_dangeon01.png',
+              './assets/bg/bg_dangeon02.png',
+              './assets/bg/bg_forestMakai.png',
+              './assets/chara/chara_elfRanger_default.png',
+              './assets/chara/chara_elfRanger_smile.png',
+              './assets/chara/chara_humKnight_default.png',
+              './assets/chara/chara_behimos_default.png',
+            ],
+            next: createGameScene, // 文字列 or (core)=>Scene or Scene
+            label: 'Now Loading...',
+            barWidth: 320,
+            barColor: '#76FF03'
+          }));
           // core.replaceScene(createGameScene());
         });
         return scene;
