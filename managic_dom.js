@@ -246,6 +246,248 @@ export class Entity extends Node {
 
 
 
+const FONT_FALLBACK_DEFAULT = 'system-ui, sans-serif';
+const FONT_PRESETS = Object.create(null);
+
+function normalizeFontPresetConfig(name, cfg={}) {
+  const config = cfg || {};
+  const defaults = config.defaults || {};
+  const family = config.family ? String(config.family).trim() : '';
+  if (!family) throw new Error(`[Label] font preset "${name}" requires a family name`);
+  const normalized = {
+    name: String(name),
+    label: config.label ? String(config.label) : family,
+    family,
+    fallback: config.fallback ? String(config.fallback) : FONT_FALLBACK_DEFAULT,
+    defaults: {
+      weight: config.weight !== undefined ? config.weight : (defaults.weight !== undefined ? defaults.weight : null),
+      style: config.style !== undefined ? config.style : (defaults.style !== undefined ? defaults.style : 'normal'),
+      variant: config.variant !== undefined ? config.variant : (defaults.variant !== undefined ? defaults.variant : null),
+      size: config.size !== undefined ? config.size : (defaults.size !== undefined ? defaults.size : null),
+      lineHeight: config.lineHeight !== undefined ? config.lineHeight : (defaults.lineHeight !== undefined ? defaults.lineHeight : undefined),
+      letterSpacing: config.letterSpacing !== undefined ? config.letterSpacing : (defaults.letterSpacing !== undefined ? defaults.letterSpacing : undefined)
+    },
+    google: normalizeGoogleOptions(config.google ? config.google : defaults.google),
+    aliases: Array.isArray(config.aliases) ? config.aliases.filter(Boolean).map(v => String(v)) : []
+  };
+  return normalized;
+}
+
+function normalizeGoogleOptions(opt) {
+  if (!opt) return null;
+  const out = { ...opt };
+  if (Array.isArray(out.weights)) {
+    out.weights = [...new Set(out.weights.map(normalizeWeightValue).filter(v => v))].sort((a,b)=>a-b);
+  }
+  return out;
+}
+
+function normalizeWeightValue(v) {
+  if (typeof v === 'number' && isFinite(v)) return v|0;
+  const str = String(v || '').trim().toLowerCase();
+  if (/^\d+$/.test(str)) return parseInt(str, 10);
+  if (str === 'bold') return 700;
+  if (str === 'normal') return 400;
+  return null;
+}
+
+function cloneGoogleOptions(opt) {
+  if (!opt) return null;
+  const out = { ...opt };
+  if (Array.isArray(opt.weights)) out.weights = [...opt.weights];
+  return out;
+}
+
+function registerFontPreset(name, cfg) {
+  if (!name) throw new Error('Font preset name is required');
+  const normalized = normalizeFontPresetConfig(name, cfg);
+  FONT_PRESETS[normalized.name] = normalized;
+  normalized.aliases.forEach(alias => assignFontPresetAlias(normalized, alias));
+  return normalized;
+}
+
+function assignFontPresetAlias(preset, alias) {
+  const key = String(alias || '').trim();
+  if (!key || key === preset.name) return;
+  FONT_PRESETS[key] = preset;
+}
+
+function getFontPreset(name) {
+  const key = String(name || '').trim();
+  return key ? (FONT_PRESETS[key] || null) : null;
+}
+
+function listFontPresets(includeAliases=false) {
+  const keys = Object.keys(FONT_PRESETS);
+  if (includeAliases) return keys;
+  return keys.filter(key => FONT_PRESETS[key] && FONT_PRESETS[key].name === key);
+}
+
+function normalizeFontSize(value, fallbackSize) {
+  let target = value;
+  if (target === undefined || target === null || target === '') target = fallbackSize;
+  if (typeof target === 'number' && isFinite(target)) {
+    return { sizeString: `${target}px`, sizePx: target };
+  }
+  if (typeof target === 'string') {
+    const trimmed = target.trim();
+    const pxMatch = /^(\d+(?:\.\d+)?)px$/i.exec(trimmed);
+    if (pxMatch) {
+      return { sizeString: trimmed, sizePx: parseFloat(pxMatch[1]) };
+    }
+    return { sizeString: trimmed, sizePx: (typeof fallbackSize === 'number' && isFinite(fallbackSize)) ? fallbackSize : null };
+  }
+  if (typeof fallbackSize === 'number' && isFinite(fallbackSize)) {
+    return { sizeString: `${fallbackSize}px`, sizePx: fallbackSize };
+  }
+  return { sizeString: '16px', sizePx: 16 };
+}
+
+function normalizeLineHeightValue(value) {
+  if (value === undefined) return { lineHeightValue: undefined, lineHeightCss: undefined };
+  if (value === null) return { lineHeightValue: null, lineHeightCss: null };
+  if (typeof value === 'number' && isFinite(value)) {
+    return { lineHeightValue: value, lineHeightCss: String(value) };
+  }
+  const trimmed = String(value).trim();
+  if (/^\d+(?:\.\d+)?$/.test(trimmed)) {
+    return { lineHeightValue: parseFloat(trimmed), lineHeightCss: trimmed };
+  }
+  const pxMatch = /^(\d+(?:\.\d+)?)px$/i.exec(trimmed);
+  if (pxMatch) {
+    const px = parseFloat(pxMatch[1]);
+    return { lineHeightValue: null, lineHeightCss: `${px}px` };
+  }
+  return { lineHeightValue: null, lineHeightCss: trimmed };
+}
+
+function normalizeLetterSpacingValue(value) {
+  if (value === undefined) return undefined;
+  if (value === null) return null;
+  if (typeof value === 'number' && isFinite(value)) return `${value}px`;
+  return String(value).trim();
+}
+
+function mergeGoogleOptions(baseOpt, overrideOpt, ctx={}) {
+  const base = cloneGoogleOptions(baseOpt);
+  let result = base ? { ...base } : {};
+  if (overrideOpt) {
+    const override = cloneGoogleOptions(overrideOpt);
+    Object.assign(result, override);
+    if (override && Array.isArray(override.weights)) result.weights = [...override.weights];
+  }
+  const weightValue = normalizeWeightValue(ctx.weight);
+  if (Array.isArray(result.weights) && weightValue) {
+    if (result.weights.indexOf(weightValue) === -1) {
+      result.weights = [...result.weights, weightValue].sort((a,b)=>a-b);
+    }
+  } else if (weightValue && result.weights === undefined && !(overrideOpt && Object.prototype.hasOwnProperty.call(overrideOpt, 'weights'))) {
+    result.weights = [weightValue];
+  }
+  if (result.italic === undefined && ctx.style === 'italic') result.italic = true;
+  if (overrideOpt && Object.prototype.hasOwnProperty.call(overrideOpt, 'italic')) result.italic = !!overrideOpt.italic;
+  if (Object.keys(result).length === 0) return null;
+  return result;
+}
+
+function resolveFontPresetOptions(nameOrPreset, overrides={}, fallbackSizePx=16) {
+  const preset = typeof nameOrPreset === 'string' ? getFontPreset(nameOrPreset) : nameOrPreset;
+  if (!preset) return null;
+  const defaults = preset.defaults || {};
+  const opt = overrides || {};
+  const family = opt.family ? String(opt.family) : preset.family;
+  const fallback = opt.fallback ? String(opt.fallback) : (preset.fallback || FONT_FALLBACK_DEFAULT);
+  const style = opt.style !== undefined ? opt.style : (defaults.style !== undefined ? defaults.style : 'normal');
+  const variant = opt.variant !== undefined ? opt.variant : (defaults.variant !== undefined ? defaults.variant : null);
+  const weight = opt.weight !== undefined ? opt.weight : (opt.fontWeight !== undefined ? opt.fontWeight : (defaults.weight !== undefined ? defaults.weight : ''));
+  const sizeSource = opt.size !== undefined ? opt.size : (opt.fontSize !== undefined ? opt.fontSize : (defaults.size !== undefined ? defaults.size : undefined));
+  const { sizeString, sizePx } = normalizeFontSize(sizeSource, fallbackSizePx);
+  const fontParts = [];
+  if (style && style !== 'normal') fontParts.push(String(style));
+  if (variant && variant !== 'normal') fontParts.push(String(variant));
+  if (weight) fontParts.push(String(weight));
+  fontParts.push(sizeString);
+  const font = `${fontParts.join(' ')} "${family}", ${fallback}`.replace(/\s+/g,' ').replace(' ,',',').trim();
+  const hasLineHeight = opt.lineHeight !== undefined || defaults.lineHeight !== undefined;
+  const lineHeightSource = hasLineHeight ? (opt.lineHeight !== undefined ? opt.lineHeight : defaults.lineHeight) : undefined;
+  const { lineHeightValue, lineHeightCss } = normalizeLineHeightValue(lineHeightSource !== undefined ? lineHeightSource : undefined);
+  const letterSpacingSource = opt.letterSpacing !== undefined ? opt.letterSpacing : defaults.letterSpacing;
+  const letterSpacing = normalizeLetterSpacingValue(letterSpacingSource);
+  const google = mergeGoogleOptions(preset.google, opt.google, { weight, style });
+  return { preset, font, fontSizePx: sizePx, weight, style, lineHeightValue, lineHeightCss, letterSpacing, google };
+}
+
+const BUILTIN_FONT_PRESETS = [
+  ['zenKakuGothicNew', {
+    label: 'Zen Kaku Gothic New',
+    family: 'Zen Kaku Gothic New',
+    google: { weights: '100..900', italic: false },
+    defaults: { weight: 500 },
+    aliases: ['zenkaku', 'zenKaku']
+  }],
+  ['delaGothicOne', {
+    label: 'Dela Gothic One',
+    family: 'Dela Gothic One',
+    google: { weights: [400], italic: false },
+    defaults: { weight: 400 },
+    aliases: ['delaGothic']
+  }],
+  ['nicoMoji', {
+    label: 'Nico Moji',
+    family: 'Nico Moji',
+    google: { weights: [400], italic: false },
+    defaults: { weight: 400 }
+  }],
+  ['zenMaruGothic', {
+    label: 'Zen Maru Gothic',
+    family: 'Zen Maru Gothic',
+    google: { weights: [300,400,500,700,900], italic: false },
+    defaults: { weight: 500, lineHeight: 1.4 },
+    aliases: ['zenMaru']
+  }],
+  ['shipporiMincho', {
+    label: 'Shippori Mincho',
+    family: 'Shippori Mincho',
+    google: { weights: '400..900', italic: false },
+    defaults: { weight: 500, lineHeight: 1.5 },
+    aliases: ['shippori']
+  }],
+  ['hachiMaruPop', {
+    label: 'Hachi Maru Pop',
+    family: 'Hachi Maru Pop',
+    google: { weights: [400], italic: false },
+    defaults: { weight: 400, lineHeight: 1.35 },
+    aliases: ['hachiMaru']
+  }],
+  ['rampartOne', {
+    label: 'Rampart One',
+    family: 'Rampart One',
+    google: { weights: [400], italic: false },
+    defaults: { weight: 400 }
+  }],
+  ['dotGothic16', {
+    label: 'DotGothic16',
+    family: 'DotGothic16',
+    google: { weights: [400], italic: false },
+    defaults: { weight: 400, letterSpacing: 0 },
+    aliases: ['dotGothic']
+  }],
+  ['pottaOne', {
+    label: 'Potta One',
+    family: 'Potta One',
+    google: { weights: [400], italic: false },
+    defaults: { weight: 400 }
+  }]
+];
+
+BUILTIN_FONT_PRESETS.forEach(item => {
+  const [name, cfg] = item;
+  registerFontPreset(name, cfg);
+});
+
+export { registerFontPreset, getFontPreset, listFontPresets, resolveFontPresetOptions };
+
+
 export class Label extends Entity {
   constructor(text=''){
     super();
@@ -257,6 +499,13 @@ export class Label extends Entity {
     this.lineHeight = 1.2;
     this._autoSize = true;
     this.fitToTextWidth = false;
+  }
+
+  static registerFontPreset(name, config){ return registerFontPreset(name, config); }
+  static getFontPreset(name){ return getFontPreset(name); }
+  static listFontPresets(includeAliases=false){ return listFontPresets(includeAliases); }
+  static resolveFontPresetOptions(nameOrPreset, overrides={}, fallbackSizePx){
+    return resolveFontPresetOptions(nameOrPreset, overrides, fallbackSizePx);
   }
   get text(){ return this._element.textContent; }
   set text(v){ this._element.textContent = v; if (this._autoSize) this._autosize(); }
@@ -358,6 +607,29 @@ export class Label extends Entity {
     // 既存の family に先頭追加（フォールバック維持）
     const fallback = this.fontFamily || 'system-ui, Arial, sans-serif';
     this.fontFamily = `"${family}", ${fallback}`;
+    return this;
+  }
+
+  async useFontPreset(name, overrides={}){
+    const resolved = Label.resolveFontPresetOptions(name, overrides, this.fontSize);
+    if (!resolved){
+      console.warn(`[Label] Unknown font preset: ${name}`);
+      return this;
+    }
+    const { preset, font, lineHeightCss, letterSpacing, google } = resolved;
+    if (google) await loadGoogleFont(preset.family, google);
+    this.font = font;
+    if (lineHeightCss !== undefined) {
+      this._element.style.lineHeight = lineHeightCss === null ? '' : String(lineHeightCss);
+    }
+    if (letterSpacing !== undefined) {
+      if (letterSpacing === null) this.letterSpacing = '';
+      else this.letterSpacing = letterSpacing;
+    } else if (this._fontPreset) {
+      this.letterSpacing = '';
+    }
+    const overridesCopy = (overrides && typeof overrides === 'object') ? { ...overrides } : overrides;
+    this._fontPreset = { name: preset.name, overrides: overridesCopy };
     return this;
   }
 
@@ -1461,7 +1733,7 @@ if (!Object.getOwnPropertyDescriptor(Node.prototype,'touchEnabled')){
   });
 }
 // export { Easing };
-export default { Core, Scene, Group, Entity, Sprite, Label, Splite, Game, Event, TileMap, Rect, Circle, loadGoogleFont };
+export default { Core, Scene, Group, Entity, Sprite, Label, Splite, Game, Event, TileMap, Rect, Circle, loadGoogleFont, registerFontPreset, getFontPreset, listFontPresets, resolveFontPresetOptions };
 
 // =============================
 // Minimal style to make DOM nodes visible (optional; consumer may override)

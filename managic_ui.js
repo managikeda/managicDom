@@ -1,5 +1,5 @@
 // managic_ui.js — UI helpers for managic_dom.js (ESM, no dependencies)
-import { Core, Group, Scene, Entity, Sprite, Label, Event } from './managic_dom.js';
+import { Core, Group, Scene, Entity, Sprite, Label, Event, loadGoogleFont } from './managic_dom.js';
 
 /**
  * このファイルに含まれるクラス名一覧
@@ -356,6 +356,10 @@ export class LabelArea extends Entity {
     });
   }
 
+  static registerFontPreset(name, config){ return Label.registerFontPreset(name, config); }
+  static getFontPreset(name){ return Label.getFontPreset(name); }
+  static listFontPresets(includeAliases=false){ return Label.listFontPresets(includeAliases); }
+
   // -------- public properties --------
   get text(){ return this._rawText; }
   set text(v){ this.setText(v); }
@@ -390,6 +394,36 @@ export class LabelArea extends Entity {
   pause(){ this._running = false; return this; }
   resetTyping(){ this._visible = (this._speed>0 ? 0 : this._plainLength()); this._ticker = 0; this._running = (this._speed>0); return this; }
   skipAll(){ this._visible = this._plainLength(); this._running = false; this._render(); return this; }
+
+  async useFontPreset(name, overrides={}){
+    const resolved = Label.resolveFontPresetOptions(name, overrides, this._fontSize);
+    if (!resolved){
+      console.warn(`[LabelArea] Unknown font preset: ${name}`);
+      return this;
+    }
+    const { preset, font, fontSizePx, lineHeightValue, lineHeightCss, letterSpacing, google } = resolved;
+    if (google) await loadGoogleFont(preset.family, google);
+    this._font = font;
+    if (typeof fontSizePx === 'number' && isFinite(fontSizePx)) {
+      this._fontSize = fontSizePx;
+    }
+    if (typeof lineHeightValue === 'number') {
+      this._lineHeight = lineHeightValue;
+    } else if (lineHeightCss && /px$/i.test(lineHeightCss) && typeof this._fontSize === 'number' && this._fontSize) {
+      const px = parseFloat(lineHeightCss);
+      if (!Number.isNaN(px) && this._fontSize) this._lineHeight = +(px / this._fontSize);
+    }
+    this._applyFontStyles();
+    if (letterSpacing !== undefined) {
+      this._content.style.letterSpacing = letterSpacing === null ? '' : letterSpacing;
+    } else if (this._fontPreset) {
+      this._content.style.letterSpacing = '';
+    }
+    const overridesCopy = (overrides && typeof overrides === 'object') ? { ...overrides } : overrides;
+    this._fontPreset = { name: preset.name, overrides: overridesCopy };
+    this._render();
+    return this;
+  }
 
   // -------- internal: style / font --------
   _applyFontStyles(forceSizeOnly=false){

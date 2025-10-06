@@ -64,7 +64,8 @@ core.start();
 #### `Label extends Entity`
 - テキスト描画用ノード。`text`, `color`, `font`, `fontSize`, `fontFamily`, `fontWeight`, `textAlign`, `lineHeight`, `letterSpacing`, `textShadow` などをサポート。
 - `fitToTextWidth` を `true` にすると文字幅にボックスを合わせる。
-- `setStroke(width, color, mode)` で縁取り、`measureTextSize()` と `textWidth`、`useGoogleFont(family, opts)`、`applyStyle(name)`（`Label.styles` プリセット）を利用可能。
+- `setStroke(width, color, mode)` で縁取り、`measureTextSize()` と `textWidth`、`useGoogleFont(family, opts)`、`useFontPreset(name, overrides)`（非同期）、`applyStyle(name)`（`Label.styles` プリセット）を利用可能。
+- Font preset helpers: `Label.registerFontPreset(name, config)`, `Label.getFontPreset(name)`, `Label.listFontPresets(includeAliases)`, `Label.resolveFontPresetOptions(name, overrides, fontSize)`。Built-ins: `zenKakuGothicNew`, `delaGothicOne`, `nicoMoji`, `zenMaruGothic`, `shipporiMincho`, `hachiMaruPop`, `rampartOne`, `dotGothic16`, `pottaOne`。
 
 #### `Sprite extends Entity`
 - 画像またはスプライトシート表示。`image` に URL/`HTMLImageElement`/`core.assets` をセット。
@@ -156,6 +157,7 @@ core.start();
 - 複数行テキスト・タイプライタ演出・簡易禁則処理付きテキストボックス。
 - オプション: `{ text, speed, font, fontSize, color, lineHeight }`。
 - メソッド: `setText(raw)`, `play()`, `pause()`, `resetTyping()`, `skipAll()`。
+- 非同期: `useFontPreset(name, overrides)` で Label と同じプリセット指定が可能。
 - プロパティ: `text`, `speed`, `font`, `fontSize`, `lineHeight`, `color`。`[b]...[/b]`, `[u]...[/u]`, `\n` に対応。
 - サンプルコード:
   ```js

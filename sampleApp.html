@@ -3,6 +3,14 @@
 <head>
   <meta charset="utf-8" />
   <meta http-equiv="content-language" content="ja">
+  <!-- 「managic」をローカルファイルへマッピング -->
+  <!-- <script type="importmap">
+  {
+    "imports": {
+      "managic": "./managic_dom.js"
+    }
+  }
+  </script> -->
   <style> body { margin:0; background-color: #333; } </style>
 </head>
 <body>
@@ -32,12 +40,13 @@
       })
       .catch(e=>{ console.log('Font load error: '+(e&&e.message?e.message:e)); });
 
-    const core = new Core(768, 576);//480, 320
+    const core = new Core(1024, 576);//480, 320
     core.fps = 30;
     core.preload([
         './image/player.png',
         './image/chara1.png',
         './image/chara3.png',
+        './assets/bg/bg_forest_elf.png',
         './image/map1.png'
     ]);
 
@@ -47,89 +56,29 @@
         const scene = new Scene();
         scene.backgroundColor = '#aaa';
 
-        // 16x16 タイル、20x15 マップ
-        // const map = new TileMap(16, 16, 30, 20);
-        // scene.addChild(map);
+        const overlay = new FrameOverlay('arcade');
+        overlay.x = 0; overlay.y = 0;
+        scene.addChild(overlay);
+        const logo = new Label('https://sampleapp.com');
+        logo.font = 'bold 20px system-ui';
+        logo.color = '#fff';
+        overlay.addPart(logo);
+        logo.x = 12;
+        logo.y = 8;
 
-        // // レイヤー追加
-        // const ground = map.addLayer('ground', { tileset: core.assets['./image/map1.png'], visible:true, collidable:true });
-        // let groundData = [
-        //   [8,8,24,24,24,24,24,24,24,24,24,24,24,24,24,24,24,24,24,24,24,24,24,24,24,24,24,24,24,8],
-        //   [8,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,8],
-        //   [8,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,8],
-        //   [8,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,8],
-        //   [8,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,8],
-        //   [8,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,8],
-        //   [8,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,8],
-        //   [8,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,8],
-        //   [8,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,8],
-        //   [8,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,8],
-        //   [8,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,8],
-        //   [8,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,8],
-        //   [8,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,8],
-        //   [8,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,8],
-        //   [8,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,8],
-        //   [8,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,8],
-        //   [8,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,8],
-        //   [8,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,8],
-        //   [8,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,8],
-        //   [24,24,24,24,24,24,24,24,24,24,24,24,24,24,24,24,24,24,24,24,24,24,24,24,24,24,24,24,24,24]
-        // ];
-        // const object = map.addLayer('object', { 
-        //   tileset: core.assets['./image/map1.png'], 
-        //   visible:true,
-        //   collidable:true,
-        //   // 例：100以上のタイルIDは固体とみなす
-        //   // solid: (idx) => idx >= 100
-        // });
-        // let objectData = [
-        //   [8,24,24,24,24,24,24,24,24,24,24,24,24,24,24,24,24,24,24,24,24,24,24,24,24,24,24,24,24,8],
-        //   [8,0,1,2,3,4,5,6,7,8,0,0,0,12,13,14,0,0,0,0,0,0,0,0,0,0,0,0,0,8],
-        //   [8,0,17,18,19,20,21,22,23,24,0,0,0,28,29,30,0,0,0,0,0,0,0,0,0,0,0,0,,8],
-        //   [8,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,8],
-        //   [8,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,8],
-        //   [8,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,8],
-        //   [8,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,8],
-        //   [8,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,8],
-        //   [8,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,8],
-        //   [8,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,8],
-        //   [8,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,8],
-        //   [8,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,8],
-        //   [8,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,8],
-        //   [8,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,8],
-        //   [8,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,8],
-        //   [8,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,8],
-        //   [8,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,8],
-        //   [8,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,8],
-        //   [8,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,8],
-        //   [24,24,24,24,24,24,24,24,24,24,24,24,24,24,24,24,24,24,24,24,24,24,24,24,24,24,24,24,24,24]
-        // ];
-        // map.setLayerData(0, groundData);  // rows x cols 配列
-        // map.setLayerData(1, objectData);
+        // 9-slice 画像フレーム
+        // frame.useImageFrame('./frame.png', 24, 'stretch');
 
-        // // 表示切替・透明度
-        // map.setLayerVisible(1, true);
-        // map.setLayerOpacity(1, 0.9);
+        //背景イメージ
+        const bg = new Sprite(1536, 1023);//832, 1216
+        bg.image = core.assets['./assets/bg/bg_forest_elf.png'];
+        bg.y = (-1023*0.33)/2;
+        bg.x = (-1536*0.33)/2;
+        bg.scaleX = 0.67;
+        bg.scaleY = 0.67;
+        scene.addChild(bg);
 
-        // 1) FrameWindow の利用
-        const win = new FrameWindow(280, 160, 'glass');   // プリセット: 'panel' | 'dark' | 'glass' | 'accent'
-        win.x = 24; win.y = 224;
-        win.padding = { top:16, right:16, bottom:16, left:16 };
-        scene.addChild(win);
-
-        // 中身を入れる（content コンテナ内に配置される）
-        const title = new Label('FrameWindow / パネル');
-        title.font = 'bold 18px system-ui, sans-serif';
-        win.content.addChild(title);
-
-        const note = new Label('プリセット/パディング/サイズ変更が可能です。');
-        note.y = 28;
-        note.visible = false;
-        win.content.addChild(note);
-
-        //サイズを変更してみる
-        // win.setSize(320, 180).usePreset('accent');
-
+        
         // 2) UIButton の利用（画像なし＝CSSテーマボタン）
         const btn1 = new UIButton(160, 40, { text: '長いボタンテキストです', maxFontSize: 20 });
         btn1.x = 60; btn1.y = 440;
@@ -147,7 +96,7 @@
         btn1.label.backgroundColor = 'rgba(255,255,255,.5)';
 
         // LabelArea
-        const la = new LabelArea(420, 140, {
+        const la = new LabelArea(620, 140, {
           font: '700 28px "Zen Maru Gothic", system-ui, sans-serif',
           fontSize: 16,      // 明示指定もOK（fontにpxが含まれていれば省略可）
           speed: 1,          // 2フレームごとに1文字
@@ -162,179 +111,19 @@
 
         la.play(); // タイプ開始（speed>0の時だけ有効）
 
-        //player(矢印キーで上下左右に移動)
-        const player = new Sprite(32, 32);
-        player.image = core.assets['./image/chara1.png'];
-        player.x = 136;
-        player.y = 200;
-        player.speed = 5;
-        player.animate([[0,0],[1,0],[2,0],[1,0]], 4, { loop:true, pingpong:false });
-        scene.addChild(player);
-
-        player.on('touchend', () => {
-          la.skipAll();
-          //la.setText('ほげほげほげほえええええええ');
-          la.text = "いま、多くの人はまだ「近未来の話」としてAIを語っています。\n子どもが社会に出るころには、AIが仕事を奪うのではないか。入試や受験の形も変わるのではないか。そう考えると、不安も期待も「これから」の出来事として語りやすい。しかし現実は、もうずっと先に進んでいます。大規模言語モデル（LLM）と呼ばれるAIは、すでに学校教育や受験勉強の延長線上にある「知識の獲得」と「正解の再現」を、人間の比ではない規模と速度でこなしてしまう。それは未来ではなく、現在進行形の出来事です。";
-          //core.replaceScene(createGameScene());
-        });
         
-        player.onenterframe = () => {
-          
-          if(core.input.left){
-            player.x -= player.speed;
-            // if(map.intersectEntity(player)){
-            //   player.x += player.speed;
-            // }
-          }
-          if(core.input.right){
-            player.x += player.speed;
-            // if(map.intersectEntity(player)){
-            //   player.x -= player.speed;
-            // }
-          }
-          if(core.input.up){
-            player.y -= player.speed;
-            // if(map.intersectEntity(player)){
-            //   player.y += player.speed;
-            // }
-          }
-          if(core.input.down){
-            player.y += player.speed;
-            // if(map.intersectEntity(player)){
-            //   player.y -= player.speed;
-            // }
-          }
-
-          // 単純な衝突チェック
-          // if (map.intersectEntity(player)) {
-          //   // 何かの衝突レイヤー上のタイルに当たっている
-          //   console.log('衝突しました');
-          // }
-
-          // どのタイルに当たったか詳細
-          // const info = map.intersectEntity(player, { details: true });
-          // // info = { hit: boolean, tiles: [{layer, x, y, index}, ...] }
-          // if (info.hit) {
-          //   info.tiles.forEach(t => {
-          //     // t.layer: レイヤー番号、t.x/t.y: タイル座標、t.index: タイルID
-          //     console.log(t);
-          //   });
-          // }
-
-          //レイヤーを指定して衝突チェック
-          // if (map.intersectEntity(player, { layers:[0,1] })) {
-          //   console.log('衝突しました1');
-          // }
-        };
-      
-        const label = new Label('HELLO ENCHANT DOM');
-        label.text = 'HELLO ENCHANT DOM!!';
+        const label = new Label('HELLO ENCHANT_DOM.JS');
         label.color = '#fff';
         label.font = 'bold 32px system-ui';
         label.backgroundColor = 'rgba(0,0,0,0.5)';
         label.width = core.width;
         label.height = 32*1.2;
         label.x = 0;
-        label.y = 150;
+        label.y = 180;
         label.textAlign = 'center';
-        // label.ontouchend = () => { 
-        //   label.rotation -= 15;
-        // };
         scene.addChild(label);
 
-          //左寄せで文字を重ねる
-          const label2 = new Label('HELLO ENCHANT DOM');
-          label2.text = 'HELLO ENC';
-          label2.color = '#ff0';
-          label2.font = 'bold 32px system-ui';
-          label2.height = 32*1.2;
-          label2.x = (label.width-label.textWidth)/2;
-          label2.y = 150;
-          label2.textAlign = 'left';
-          scene.addChild(label2);
-
-        let y = 18+44;
-        const mk=(text, css, color='#f5f7ff')=>{
-          const lb=new Label(text); lb.font=css; lb.color=color; lb.moveTo(20,y); scene.addChild(lb); y+=44;
-          lb.width = core.width;
-          lb.textAlign = 'center';
-        };
-
-        mk('ぜんかくゴシック New（太さ900 / 28px）', '900 28px "Zen Kaku Gothic New", system-ui, sans-serif');
-        mk('デラゴシック One（太さ400 / 32px）', '400 32px "Dela Gothic One", system-ui, sans-serif', '#ffeb3b');
-
-        // Nico Moji（英字ほぼ無し → 日本語表示で確認）
-        mk('ニコもじ', '400 32px "Nico Moji", system-ui, sans-serif', '#00e5ff');
-
-        // Zen Maru Gothic（離散ウェイト）
-        mk('ぜんまるゴシック（太さ500 / 28px）', '900 28px "Zen Maru Gothic", system-ui, sans-serif', '#ffd2d2');
-
-        mk('しっぽり明朝（太さ600 / 24px）', '400 24px "Shippori Mincho", serif', '#e0f7fa');
-        mk('はちまるポップ（太さ400 / 28px）', '400 28px "Hachi Maru Pop", system-ui, sans-serif', '#fbcffb');
-        mk('ランパート One（太さ400 / 30px）', '400 30px "Rampart One", system-ui, sans-serif', '#b2ff59');
-        mk('ドットゴシック16（太さ400 / 24px）', '400 24px "DotGothic16", monospace', '#cfd8dc');
-        mk('ポッタ One（太さ400 / 30px）', '400 30px "Potta One", system-ui, sans-serif', '#ffd54f');
-
-        // textWidth sample（JPグリフで測定）
-        const s=new Label('にほんごテキスト幅の計測'); s.font='600 40px "Zen Maru Gothic", system-ui, sans-serif'; s.moveTo(20,y+8); scene.addChild(s);
-        const w=new Label('textWidth: '+s.textWidth+' px'); w.font='14px system-ui, sans-serif'; w.color='#ccc'; w.moveTo(20,y+58); scene.addChild(w);
-        // s.fontSize = 40;
-        // s.fontWeight = 900;
-        s.ontouchstart = () => {
-          s.font = '400 40px "Hachi Maru Pop", system-ui, sans-serif';
-          s.color = '#ffeb3b';
-        };
-      
         
-        const sprite = new Sprite(32, 32);
-        sprite.image = core.assets['./image/chara3.png'];
-        sprite.x = 196;
-        sprite.y = 200;
-        //sprite.animate([1,2,1], 6, { loop: true, pingpong: true });
-        sprite.animate([[0,0],[1,1],[2,2],[1,1]], 4, { loop:true, pingpong:false });
-        scene.addChild(sprite);
-
-        sprite.ontouchstart = () => {
-          sprite.stopAnimation();
-        };
-        sprite.onenterframe = () => {
-          if(sprite.intersect(player)){
-            sprite.x += player.speed;
-            //player.x -= player.speed;
-          }
-        };
-
-        // const lbl2 = new Label('Score');
-        // await lbl2.useGoogleFont('Bangers'); // 内部で load → family セット → autosize
-        // scene.addChild(lbl2);
-
-        // 矩形
-        const block = new Rect(48, 16, {
-          fillColor: '#4caf50',
-          strokeColor: '#2e7d32',
-          strokeWidth: 2,
-          cornerRadius: 4
-        });
-        block.moveTo(220, 130);
-        scene.addChild(block);
-
-        // 円
-        const ball = new Circle(24, {
-          fillColor: '#ffc107',
-          strokeColor: '#ff9800',
-          strokeWidth: 2
-        });
-        ball.moveTo(120, 100);
-        scene.addChild(ball);
-
-        // ふつうの Sprite/Entity と同様に、tl や intersect が使えます
-        ball.tl.moveBy(100, 0, 30, 'easeOutQuad').moveBy(-100, 0, 30, 'easeInQuad').loop();
-
-        // 当たり判定（AABB）
-        ball.onenterframe = () => {
-          if (ball.intersect(block)) { console.log('ヒット'); }
-        };
-
 
         scene.on('touchend', () => {
           //次のステージで使う画像を事前に読み込む
@@ -388,10 +177,10 @@
         //背景イメージ
         const bg = new Sprite(1536, 1023);//832, 1216
         bg.image = core.assets['./assets/bg/bg_forestMakai.png'];
-        bg.y = -1023*0.2;
-        bg.x = -1536*0.2;
-        bg.scaleX = 0.6;
-        bg.scaleY = 0.6;
+        bg.y = (-1023*0.33)/2;
+        bg.x = (-1536*0.33)/2;
+        bg.scaleX = 0.67;
+        bg.scaleY = 0.67;
         scene.addChild(bg);
 
         //キャラクターイメージ

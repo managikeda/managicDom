@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta http-equiv="content-language" content="ja">
+  <style> body { margin:0; background-color: #333; } </style>
+</head>
+<body>
+  <div id="managic-stage"></div>
+  <script type="module">
+    import { Core, Scene, Label, loadGoogleFont } from './managic_dom.js';
+    import { FrameWindow, LabelArea } from './managic_ui.js';
+
+    const PRESETS_TO_USE = [
+    ['Zen Kaku Gothic New', { weights:'100..900', italic:false }],
+      ['Dela Gothic One',     { weights:[400],      italic:false }],
+      ['Nico Moji',           { weights:[400],      italic:false }],
+      // Zen Maru Gothic は離散ウェイト（300/400/500/700/900）
+      ['Zen Maru Gothic',     { weights:[300,400,500,700,900], italic:false }],
+      ['Shippori Mincho',     { weights:'400..900', italic:false }],
+      ['Hachi Maru Pop',      { weights:[400],      italic:false }],
+      ['Rampart One',         { weights:[400],      italic:false }],
+      ['DotGothic16',         { weights:[400],      italic:false }],
+      ['Potta One',           { weights:[400],      italic:false }],
+    ];
+
+    async function main(){
+    // 1. プリセットで使うフォントを明示的にプリロード
+    await Promise.all(
+        PRESETS_TO_USE.map(async ([presetName, opt]) => {
+        const preset = Label.getFontPreset(presetName);
+        if (preset) {
+            await loadGoogleFont(preset.family, opt ?? preset.google);
+            console.log(`${preset.label} preloaded`);
+        }
+        })
+    );
+
+    const core = new Core(768, 576);
+    core.addEventListener('load', async () => {
+        const scene = new Scene();
+        core.pushScene(scene);
+
+        // 2. 以降は useFontPreset を呼ぶだけで、CSS 文字列不要
+        const title = new Label('魔法学院 放送部');
+        title.moveTo(48, 32);
+        title.color = '#fff';
+        await title.useFontPreset('zenMaruGothic', { weight: 700, size: 32 });
+        scene.addChild(title);
+
+        const title2 = new Label('魔法学院 放送部');
+        title2.moveTo(48, 80);
+        title2.color = '#fff';
+        await title2.useFontPreset('delaGothicOne');
+        title2.fontSize = 32;
+        scene.addChild(title2);
+
+        const title3 = new Label('魔法学院 放送部');
+        title3.moveTo(48, 128);
+        title3.color = '#fff';
+        await title3.useFontPreset('hachiMaruPop');
+        title3.fontSize = 32;
+        scene.addChild(title3);
+
+        const title4 = new Label('魔法学院 放送部');
+        title4.moveTo(48, 176);
+        title4.color = '#fff';
+        await title4.useFontPreset('rampartOne');
+        title4.fontSize = 32;
+        scene.addChild(title4);
+
+        const title5 = new Label('魔法学院 放送部');
+        title5.moveTo(48, 224);
+        title5.color = '#fff';
+        await title5.useFontPreset('dotGothic16');
+        title5.fontSize = 32;
+        scene.addChild(title5);
+
+        const title6 = new Label('魔法学院 放送部');
+        title6.moveTo(48, 272);
+        title6.color = '#fff';
+        await title6.useFontPreset('pottaOne');
+        title6.fontSize = 32;
+        scene.addChild(title6);
+
+        const title7 = new Label('魔法学院 放送部');
+        title7.moveTo(348, 32);
+        title7.color = '#fff';
+        await title7.useFontPreset('shipporiMincho');
+        title7.fontSize = 32;
+        scene.addChild(title7);
+
+        const title8 = new Label('魔法学院 放送部');
+        title8.moveTo(348, 80);
+        title8.color = '#fff';
+        title8.fontSize = 32;
+        title8.fontWeight = 900;
+        scene.addChild(title8);
+
+        const windowUI = new FrameWindow(640, 180, 'panel');
+        windowUI.moveTo(64, 360);
+        scene.addChild(windowUI);
+
+        const dialogue = new LabelArea(600, 140, { speed: 2 });
+        dialogue.moveTo(20, 20);
+        await dialogue.useFontPreset('shipporiMincho', { size: 24, });
+        dialogue.color = '#102a43';
+        dialogue.setText('[b]リサ[/b]: プリセットを使えば指定がとても楽になるね！\n[u]フォントの切り替えも一瞬だよ。[/u]');
+        windowUI.content.addChild(dialogue);
+        dialogue.play();
+    });
+
+    core.start();
+    }
+
+    main().catch(err => console.error(err));
+
+  </script>
+</body>
+</html>
