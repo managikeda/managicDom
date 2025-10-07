@@ -5,7 +5,7 @@ import { Core, Group, Scene, Entity, Sprite, Label, Event, loadGoogleFont } from
  * このファイルに含まれるクラス名一覧
  * FrameWindow, CharSprite, UIButton, 
  * LabelArea, StatusBar, FrameOverlay, 
- * AnimatedCover, LoadingScene
+ * AnimatedCover, LoadingScene, MenuScene
  */
 
 /**
@@ -31,6 +31,10 @@ export class FrameWindow extends Group {
 
     // デフォルトプリセット
     this._presets = {
+      standard: {
+        background: '#333', border: '1px solid #cfd8dc',
+        radius: 8, shadow: '0 2px 8px rgba(0,0,0,.12)'
+      },
       panel: {
         background: '#f6f7f9', border: '1px solid #cfd8dc',
         radius: 8, shadow: '0 2px 8px rgba(0,0,0,.12)'
@@ -1794,6 +1798,807 @@ export class LoadingScene extends Scene {
     } else {
       // 不正 or 未指定なら戻す
       core.popScene();
+    }
+  }
+}
+
+
+const MENU_SCENE_BUTTON_THEMES = {
+  blue: {
+    normal:  { bg:'#2b87ff', border:'#0f5bd5', color:'#fff' },
+    hover:   { bg:'#4897ff', border:'#0f5bd5', color:'#fff' },
+    active:  { bg:'#166ff0', border:'#0b4cc0', color:'#eaf3ff' },
+    disabled:{ bg:'#9db9e8', border:'#8aa3cc', color:'#f6f9ff' }
+  },
+  green: {
+    normal:  { bg:'#2e8b57', border:'#1f613c', color:'#f4fff5' },
+    hover:   { bg:'#379d62', border:'#1f613c', color:'#f6fff8' },
+    active:  { bg:'#227547', border:'#184d2f', color:'#e2f7e5' },
+    disabled:{ bg:'#a2cbb2', border:'#7fa38b', color:'#f0faf2' }
+  },
+  orange: {
+    normal:  { bg:'#ff8a3d', border:'#d76612', color:'#fff' },
+    hover:   { bg:'#ff9b59', border:'#d76612', color:'#fffaf5' },
+    active:  { bg:'#e57124', border:'#b9540c', color:'#fff2e7' },
+    disabled:{ bg:'#f4c6a0', border:'#d09c6f', color:'#fff8f1' }
+  },
+  gray: {
+    normal:  { bg:'#5f6b7d', border:'#3c4553', color:'#f3f4f9' },
+    hover:   { bg:'#6b788b', border:'#3c4553', color:'#ffffff' },
+    active:  { bg:'#4e586a', border:'#2f3641', color:'#e8eaf0' },
+    disabled:{ bg:'#9fa5b1', border:'#8a909a', color:'#f5f6f9' }
+  },
+  beige: {
+    normal:  { bg:'#f2e6d3', border:'#d5c1a1', color:'#5a4632' },
+    hover:   { bg:'#f7ecd9', border:'#d5c1a1', color:'#5a4632' },
+    active:  { bg:'#e7d7c0', border:'#c2ae91', color:'#4a3826' },
+    disabled:{ bg:'#f7efe4', border:'#dfd2c1', color:'#8b7a68' }
+  },
+  rust: {
+    normal:  { bg:'#d16a3a', border:'#9d471d', color:'#fff3ec' },
+    hover:   { bg:'#df7b4d', border:'#9d471d', color:'#fff7f1' },
+    active:  { bg:'#b95a28', border:'#853713', color:'#ffe8dc' },
+    disabled:{ bg:'#e4aa8a', border:'#c27856', color:'#fff4ec' }
+  }
+};
+
+function cloneButtonTheme(theme){
+  if (!theme) return null;
+  return {
+    normal:   { ...(theme.normal   || {}) },
+    hover:    { ...(theme.hover    || {}) },
+    active:   { ...(theme.active   || {}) },
+    disabled: { ...(theme.disabled || {}) }
+  };
+}
+
+function deepClone(obj){
+  if (obj == null || typeof obj !== 'object') return obj;
+  const out = Array.isArray(obj) ? [] : {};
+  for (const key in obj){
+    if (Object.prototype.hasOwnProperty.call(obj, key)){
+      out[key] = deepClone(obj[key]);
+    }
+  }
+  return out;
+}
+
+function applyOverrides(target, override){
+  if (!override || typeof override !== 'object') return target;
+  Object.keys(override).forEach(key => {
+    const value = override[key];
+    if (value && typeof value === 'object' && !Array.isArray(value)){
+      if (!target[key] || typeof target[key] !== 'object' || Array.isArray(target[key])){
+        target[key] = deepClone(value);
+      } else {
+        applyOverrides(target[key], value);
+      }
+    } else {
+      target[key] = value;
+    }
+  });
+  return target;
+}
+
+function mergePalette(base, override){
+  const cloned = deepClone(base);
+  return applyOverrides(cloned, override);
+}
+
+const MENU_SCENE_PRESETS = {
+  default: {
+    backgroundColor: 'rgba(240,244,255,0.9)',
+    frameTheme: 'panel',
+    framePadding: { top:28, right:32, bottom:28, left:32 },
+    titleColor: '#1f2a44',
+    descriptionColor: '#1f2a44',
+    noteColor: 'rgba(31,42,68,0.72)',
+    errorColor: '#b00020',
+    counterValueColor: '#1f2a44',
+    emptyMessageColor: '#b00020',
+    overlay: { preset: 'arcade', options: {} },
+    statusbarDefaults: {
+      gauge: { bgColor:'#24426f', barColor:'#4fc3f7', valueColor:'#fff', showValue:true },
+      tokens: { symbolFilled:'●', symbolEmpty:'○', tokenSize:20, spacing:6 }
+    },
+    buttonThemes: {
+      primary: MENU_SCENE_BUTTON_THEMES.blue,
+      secondary: MENU_SCENE_BUTTON_THEMES.gray,
+      accent: MENU_SCENE_BUTTON_THEMES.blue
+    }
+  },
+  warm: {
+    backgroundColor: 'rgba(255,245,235,0.92)',
+    frameTheme: 'accent',
+    framePadding: { top:32, right:32, bottom:32, left:32 },
+    titleColor: '#6b3b12',
+    descriptionColor: '#7b4315',
+    noteColor: 'rgba(123,67,21,0.72)',
+    errorColor: '#b3261e',
+    counterValueColor: '#6b3b12',
+    emptyMessageColor: '#b3261e',
+    overlay: { preset: 'rounded', options: { boxShadow: '0 10px 28px rgba(168,98,34,.35)' } },
+    statusbarDefaults: {
+      gauge: { bgColor:'#c7762a', barColor:'#ffb74d', valueColor:'#fff', showValue:true },
+      tokens: { symbolFilled:'★', symbolEmpty:'☆', tokenSize:22, spacing:6 }
+    },
+    buttonThemes: {
+      primary: MENU_SCENE_BUTTON_THEMES.orange,
+      secondary: MENU_SCENE_BUTTON_THEMES.beige,
+      accent: MENU_SCENE_BUTTON_THEMES.rust
+    }
+  },
+  forest: {
+    backgroundColor: 'rgba(232,245,236,0.9)',
+    frameTheme: 'dark',
+    framePadding: { top:28, right:32, bottom:32, left:32 },
+    titleColor: '#1f3b2d',
+    descriptionColor: '#1f3b2d',
+    noteColor: 'rgba(31,59,45,0.75)',
+    errorColor: '#ba1a1a',
+    counterValueColor: '#1f3b2d',
+    emptyMessageColor: '#ba1a1a',
+    overlay: { preset: 'shadow-only', options: { boxShadow: '0 12px 24px rgba(0,0,0,.45)' } },
+    statusbarDefaults: {
+      gauge: { bgColor:'#22543d', barColor:'#4caf50', valueColor:'#e8f5e9', showValue:true },
+      tokens: { symbolFilled:'■', symbolEmpty:'□', tokenSize:20, spacing:5 }
+    },
+    buttonThemes: {
+      primary: MENU_SCENE_BUTTON_THEMES.green,
+      secondary: MENU_SCENE_BUTTON_THEMES.gray,
+      accent: MENU_SCENE_BUTTON_THEMES.green
+    }
+  }
+};
+
+export class MenuScene extends Scene {
+  constructor(opts={}){
+    super();
+    const options = (opts && typeof opts === 'object') ? opts : {};
+    if (!options.key) throw new Error('MenuScene: options.key is required');
+    if (typeof options.onComplete !== 'function') throw new Error('MenuScene: options.onComplete callback is required');
+
+    this._key = String(options.key);
+    this._onComplete = options.onComplete;
+    this._onCancel = (typeof options.onCancel === 'function') ? options.onCancel : null;
+    this._title = options.title != null ? String(options.title) : '';
+    this._description = options.description != null ? String(options.description) : '';
+
+    const paletteName = options.uiPreset || options.palette || 'default';
+    const basePalette = MENU_SCENE_PRESETS[paletteName] || MENU_SCENE_PRESETS.default;
+    const paletteOverrides = options.colors || options.paletteOverrides || null;
+    this._paletteName = paletteName;
+    this._palette = mergePalette(basePalette, paletteOverrides);
+
+    this._theme = options.theme || this._palette.frameTheme || 'panel';
+    this._framePadding = this._normalizePadding(options.framePadding != null ? options.framePadding : this._palette.framePadding);
+    this._selectorType = (options.selectorType || 'list').toLowerCase();
+    if (!['list','grid','counter'].includes(this._selectorType)) this._selectorType = 'list';
+    this._options = Array.isArray(options.options) ? options.options.map(o => (o && typeof o === 'object') ? { ...o } : { value: o, label: String(o) }) : [];
+    this._range = (options.range && typeof options.range === 'object') ? { ...options.range } : {};
+    this._deps = options.deps || null;
+    this._statusbarOpt = options.statusbar ? deepClone(options.statusbar) : null;
+    this._assets = Array.isArray(options.assets) ? options.assets.filter(v => typeof v === 'string' && v) : [];
+    this._debounceMs = (options.debounceMs != null) ? Math.max(0, options.debounceMs|0) : 300;
+
+    const baseOverlayOptions = this._palette.overlay && this._palette.overlay.options ? deepClone(this._palette.overlay.options) : {};
+    const overlayOverrides = options.overlayOptions || null;
+    this._overlayPreset = options.overlayPreset || (this._palette.overlay && this._palette.overlay.preset ? this._palette.overlay.preset : 'simple');
+    this._overlayOptions = applyOverrides(baseOverlayOptions, overlayOverrides || {});
+    this._forceOverlayPreset = options.overlayPreset != null || (overlayOverrides && Object.keys(overlayOverrides).length > 0);
+    this._frameOverlay = this._resolveFrameOverlay(options.frameOverlay, options.reuseOverlay !== false);
+
+
+    this._buttons = [];
+    this._locked = false;
+    this._lockTimer = null;
+    this._body = null;
+    this._footer = null;
+    this._bodyCursor = 0;
+    this._valueLabel = null;
+    this._minusEntry = null;
+    this._plusEntry = null;
+    this._confirmEntry = null;
+    this._errorLabel = null;
+    this._currentValue = 0;
+    this._minValue = 0;
+    this._maxValue = 0;
+    this._stepValue = 1;
+    this._unitLabel = '';
+    this._noOptions = false;
+    this._loadingLabel = null;
+
+    this.backgroundColor = options.backgroundColor || this._palette.backgroundColor || 'rgba(240,244,255,0.85)';
+
+    this._showLoadingIndicator();
+
+    this._ensureAssets()
+      .catch(err => {
+        console.error('MenuScene ensureAssets error:', err);
+      })
+      .then(() => {
+        this._buildUI();
+      });
+  }
+
+  _showLoadingIndicator(){
+    if (this._loadingLabel) return;
+    const label = new Label('読み込み中...');
+    label.font = 'bold 20px system-ui, sans-serif';
+    label.color = (this._palette && this._palette.titleColor) ? this._palette.titleColor : '#2b3a56';
+    label.textAlign = 'center';
+    const core = Core.instance;
+    const w = core ? core.width : (this.width || 360);
+    const h = core ? core.height : (this.height || 240);
+    label.width = w;
+    label.moveTo(0, Math.round(h/2 - 20));
+    this._loadingLabel = label;
+    this.addChild(label);
+  }
+
+  _removeLoadingIndicator(){
+    if (!this._loadingLabel) return;
+    this.removeChild(this._loadingLabel);
+    this._loadingLabel = null;
+  }
+
+  async _ensureAssets(){
+    if (!this._assets.length) return;
+    const core = Core.instance;
+    if (!core || typeof core.ensureAssets !== 'function') return;
+    await core.ensureAssets(this._assets);
+  }
+
+  _normalizePadding(padding){
+    const fallback = this._palette && this._palette.framePadding ? this._palette.framePadding : { top:28, right:28, bottom:28, left:28 };
+    if (padding == null) return { ...fallback };
+    if (typeof padding === 'number'){
+      return { top:padding, right:padding, bottom:padding, left:padding };
+    }
+    return {
+      top:   padding.top   != null ? padding.top   : fallback.top,
+      right: padding.right != null ? padding.right : fallback.right,
+      bottom:padding.bottom!= null ? padding.bottom: fallback.bottom,
+      left:  padding.left  != null ? padding.left  : fallback.left
+    };
+  }
+
+  _resolveFrameOverlay(explicit, allowReuse){
+    this._overlayInherited = false;
+    if (explicit === null) return null;
+    if (explicit instanceof FrameOverlay){
+      this._overlayInherited = true;
+      return explicit;
+    }
+    if (!allowReuse) return null;
+    const core = Core.instance;
+    if (!core || !core.currentScene || core.currentScene === this) return null;
+    const prev = core.currentScene;
+    for (let i = prev.childNodes.length - 1; i >= 0; i--){
+      const node = prev.childNodes[i];
+      if (node instanceof FrameOverlay){
+        prev.removeChild(node);
+        this._overlayInherited = true;
+        return node;
+      }
+    }
+    return null;
+  }
+
+  _createFrameOverlay(){
+    const preset = this._overlayPreset || 'simple';
+    const opts = this._overlayOptions || {};
+    const overlay = new FrameOverlay(preset, opts);
+    if (typeof overlay.fitToCore === 'function') overlay.fitToCore();
+    return overlay;
+  }
+
+  _attachFrameOverlay(){
+    if (!this._frameOverlay){
+      this._overlayInherited = false;
+      this._frameOverlay = this._createFrameOverlay();
+    }
+    if (!this._frameOverlay) return;
+    if (this._frameOverlay.parentNode !== this){
+      this.addChild(this._frameOverlay);
+    }
+    if (typeof this._frameOverlay.fitToCore === 'function'){
+      this._frameOverlay.fitToCore();
+    }
+    if (!this._overlayInherited || this._forceOverlayPreset){
+      this._frameOverlay.usePreset(this._overlayPreset || 'simple', this._overlayOptions || {});
+    }
+  }
+
+  _applyButtonTheme(button, role='primary'){
+    if (!button || typeof button.setThemes !== 'function' || !this._palette || !this._palette.buttonThemes) return;
+    const paletteTheme = this._palette.buttonThemes[role] || this._palette.buttonThemes.primary;
+    if (!paletteTheme) return;
+    const theme = cloneButtonTheme(paletteTheme);
+    if (theme) button.setThemes(theme);
+  }
+
+  _buildUI(){
+    this._removeLoadingIndicator();
+    this._buttons = [];
+    this._locked = false;
+    if (this._lockTimer){ clearTimeout(this._lockTimer); this._lockTimer = null; }
+
+    const core = Core.instance;
+    const stageW = core ? core.width : (this.width || 768);
+    const stageH = core ? core.height : (this.height || 576);
+    this.width = stageW;
+    this.height = stageH;
+
+    const margin = 48;
+    const estimatedHeight = this._selectorType === 'counter' ? 320 : Math.max(320, 240 + this._options.length * (this._selectorType === 'grid' ? 80 : 60));
+    const winW = Math.max(320, stageW - margin * 2);
+    const winH = Math.min(stageH - margin * 2, Math.max(280, estimatedHeight));
+    this._window = new FrameWindow(winW, winH, this._theme);
+    if (this._framePadding) this._window.padding = this._framePadding;
+    this._window.moveTo(Math.round((stageW - this._window._w) / 2), Math.round((stageH - this._window._h) / 2));
+    this.addChild(this._window);
+
+    const content = this._window.content;
+    const contentWidth = this._window.contentWidth;
+    const contentHeight = this._window.contentHeight;
+
+    const needFooter = (this._selectorType === 'counter') || !!this._onCancel;
+    const footerHeight = needFooter ? 72 : 0;
+    const bodyHeight = Math.max(0, contentHeight - footerHeight);
+
+    this._body = new Entity(contentWidth, bodyHeight);
+    this._body._element.style.overflowY = 'auto';
+    this._body._element.style.overflowX = 'hidden';
+    this._body._element.style.boxSizing = 'border-box';
+    this._body._element.style.paddingRight = '16px';
+    this._body._element.style.paddingBottom = '8px';
+    this._body.moveTo(0, 0);
+    content.addChild(this._body);
+
+    this._footer = null;
+    if (needFooter){
+      this._footer = new Group();
+      this._footer.width = contentWidth;
+      this._footer.height = footerHeight;
+      this._footer.x = 0;
+      this._footer.y = bodyHeight + 8;
+      content.addChild(this._footer);
+    }
+
+    this._bodyCursor = 0;
+    this._composeHeader();
+    this._composeSelection();
+    this._composeFooter();
+    this._setButtonsEnabled(true);
+    this._applyCounterLimits();
+    this._attachFrameOverlay();
+  }
+
+  _composeHeader(){
+    const width = this._body.width || this._window.contentWidth;
+    let y = this._bodyCursor || 0;
+    if (this._title){
+      const title = new Label(this._title);
+      title.font = 'bold 26px system-ui, sans-serif';
+      title.color = (this._palette && this._palette.titleColor) || '#1f2a44';
+      title.textAlign = 'left';
+      title.width = width;
+      title.moveTo(0, y);
+      this._body.addChild(title);
+      y += 36;
+    }
+    if (this._statusbarOpt){
+      const typeKey = (this._statusbarOpt.type === 'token') ? 'tokens' : (this._statusbarOpt.type || 'gauge');
+      const statusDefaults = (this._palette && this._palette.statusbarDefaults) ? this._palette.statusbarDefaults : {};
+      const baseDefaults = deepClone(statusDefaults[typeKey] || {});
+      const sbUser = deepClone(this._statusbarOpt);
+      const progressValue = sbUser.progress;
+      const tokenCount = sbUser.tokens;
+      delete sbUser.type;
+      delete sbUser.progress;
+      delete sbUser.tokens;
+      const sbOptions = Object.assign({
+        width: width,
+        label: sbUser.label || '',
+        labelAlign: sbUser.labelAlign || 'top'
+      }, baseDefaults, sbUser);
+      const statusBar = new StatusBar(typeKey, sbOptions);
+      statusBar.moveTo(0, y);
+      this._body.addChild(statusBar);
+      y += statusBar.height + 12;
+      if (typeKey === 'tokens'){
+        const tokenMax = tokenCount != null ? Math.max(1, +tokenCount) : (sbOptions.max != null ? +sbOptions.max : statusBar.max);
+        statusBar.setMax(tokenMax);
+      }
+      if (progressValue != null){
+        const progress = Math.max(0, Math.min(1, +progressValue));
+        if (typeKey === 'gauge'){
+          const maxValue = sbOptions.max != null ? +sbOptions.max : statusBar.max;
+          statusBar.setMax(maxValue);
+          statusBar.setValue(progress * statusBar.max, false);
+        } else {
+          const tokenMax = statusBar.max || 1;
+          statusBar.setValue(Math.round(progress * tokenMax), false);
+        }
+      }
+    }
+    if (this._description){
+      const lines = this._description.split(/\r?\n/);
+      const descHeight = Math.min(140, Math.max(60, lines.length * 28));
+      const desc = new LabelArea(width, descHeight, {
+        text: this._description,
+        font: '18px system-ui, sans-serif',
+        lineHeight: 1.4,
+        color: (this._palette && this._palette.descriptionColor) || '#1f2a44'
+      });
+      desc.skipAll();
+      desc.moveTo(0, y);
+      this._body.addChild(desc);
+      y += descHeight + 16;
+    }
+    this._bodyCursor = y;
+  }
+
+  _composeSelection(){
+    let y = this._bodyCursor || 0;
+    if (this._selectorType === 'counter'){
+      y = this._composeCounter(y);
+    } else {
+      if (!this._options.length){
+        this._noOptions = true;
+        const message = new Label('選択肢がありません');
+        message.font = 'bold 18px system-ui, sans-serif';
+        message.color = (this._palette && this._palette.emptyMessageColor) || (this._palette && this._palette.errorColor) || '#b00020';
+        message.textAlign = 'center';
+        message.width = this._body.width || this._window.contentWidth;
+        message.moveTo(0, y + 16);
+        this._body.addChild(message);
+        y += 80;
+      } else if (this._selectorType === 'grid'){
+        y = this._composeGridOptions(y);
+      } else {
+        y = this._composeListOptions(y);
+      }
+    }
+    this._bodyCursor = y;
+  }
+
+  _composeListOptions(startY){
+    const width = this._body.width || this._window.contentWidth;
+    const gap = 12;
+    let y = startY;
+    for (const opt of this._options){
+      const hasNote = !!opt && !!opt.note;
+      const labelText = (opt && opt.label != null) ? String(opt.label) : (opt && opt.value != null ? String(opt.value) : '選択');
+      const buttonHeight = hasNote ? 88 : 64;
+      const btn = new UIButton(width, buttonHeight, {
+        text: labelText,
+        maxFontSize: 20,
+        minFontSize: 14,
+        paddingX: 18,
+        paddingY: 12
+      });
+      btn.moveTo(0, y);
+      this._body.addChild(btn);
+      this._applyButtonTheme(btn, 'primary');
+      this._decorateOptionButton(btn, opt, 'list');
+      const entry = this._registerButton(btn, { permaDisabled: !!(opt && opt.disabled) });
+      if (!(opt && opt.disabled)){
+        btn.on(Event.TOUCH_END, () => this._handleOptionSelect(opt));
+      }
+      if (opt && opt.disabled) btn.setEnabled(false);
+      y += buttonHeight + gap;
+    }
+    return y;
+  }
+
+  _composeGridOptions(startY){
+    const width = this._body.width || this._window.contentWidth;
+    const gapX = 12;
+    const gapY = 12;
+    const columns = (width >= 540 && this._options.length >= 5) ? 3 : 2;
+    const btnWidth = Math.max(140, Math.floor((width - gapX * (columns - 1)) / columns));
+    const btnHeight = 130;
+    let y = startY;
+    this._options.forEach((opt, index) => {
+      const labelText = (opt && opt.label != null) ? String(opt.label) : (opt && opt.value != null ? String(opt.value) : '選択');
+      const btn = new UIButton(btnWidth, btnHeight, {
+        text: labelText,
+        maxFontSize: 20,
+        minFontSize: 12,
+        paddingX: 12,
+        paddingY: 12
+      });
+      const col = index % columns;
+      const row = Math.floor(index / columns);
+      btn.moveTo(col * (btnWidth + gapX), y + row * (btnHeight + gapY));
+      this._body.addChild(btn);
+      this._applyButtonTheme(btn, 'primary');
+      this._decorateOptionButton(btn, opt, 'grid');
+      this._registerButton(btn, { permaDisabled: !!(opt && opt.disabled) });
+      if (!(opt && opt.disabled)){
+        btn.on(Event.TOUCH_END, () => this._handleOptionSelect(opt));
+      } else {
+        btn.setEnabled(false);
+      }
+    });
+    const rows = Math.ceil(this._options.length / columns);
+    return y + (rows ? (rows * (btnHeight + gapY) - gapY + 4) : 0);
+  }
+
+  _composeCounter(startY){
+    this._setupRangeDefaults();
+    const width = this._body.width || this._window.contentWidth;
+    let y = startY;
+    const buttonSize = Math.max(72, Math.min(110, Math.round(width * 0.22)));
+
+    const minus = new UIButton(buttonSize, buttonSize, { text: '-', maxFontSize: 36, minFontSize: 24, paddingX: 12, paddingY: 12 });
+    minus.moveTo(0, y);
+    this._body.addChild(minus);
+    this._applyButtonTheme(minus, 'accent');
+    this._minusEntry = this._registerButton(minus, { type: 'minus' });
+    minus.on(Event.TOUCH_END, () => this._changeCounter(-this._stepValue));
+
+    const plus = new UIButton(buttonSize, buttonSize, { text: '+', maxFontSize: 36, minFontSize: 24, paddingX: 12, paddingY: 12 });
+    plus.moveTo(width - buttonSize, y);
+    this._body.addChild(plus);
+    this._applyButtonTheme(plus, 'accent');
+    this._plusEntry = this._registerButton(plus, { type: 'plus' });
+    plus.on(Event.TOUCH_END, () => this._changeCounter(this._stepValue));
+
+    const valueWidth = Math.max(140, width - buttonSize * 2 - 20);
+    const valueLabel = new Label('');
+    valueLabel.font = 'bold 44px system-ui, sans-serif';
+    valueLabel.color = (this._palette && this._palette.counterValueColor) || (this._palette && this._palette.titleColor) || '#1f2a44';
+    valueLabel.width = valueWidth;
+    valueLabel.textAlign = 'center';
+    valueLabel.moveTo(Math.round((width - valueWidth) / 2), y + Math.round(buttonSize / 2) - 30);
+    this._body.addChild(valueLabel);
+    this._valueLabel = valueLabel;
+
+    y += buttonSize + 24;
+    this._updateCounterDisplay();
+    return y;
+  }
+
+  _composeFooter(){
+    if (!this._footer) return;
+    const width = this._window.contentWidth;
+    const baseY = Math.max(0, this._footer.height - 56);
+
+    if (this._onCancel){
+      const backBtn = new UIButton(148, 56, { text: '戻る', maxFontSize: 18, minFontSize: 14, paddingX: 16, paddingY: 10 });
+      backBtn.moveTo(0, baseY);
+      this._footer.addChild(backBtn);
+      this._applyButtonTheme(backBtn, 'secondary');
+      this._registerButton(backBtn, { type: 'cancel' });
+      backBtn.on(Event.TOUCH_END, () => this._handleCancel());
+    }
+
+    if (this._selectorType === 'counter'){
+      const confirmBtn = new UIButton(168, 56, { text: '決定', maxFontSize: 18, minFontSize: 14, paddingX: 18, paddingY: 10 });
+      confirmBtn.moveTo(width - confirmBtn._w, baseY);
+      this._footer.addChild(confirmBtn);
+      this._applyButtonTheme(confirmBtn, 'primary');
+      this._confirmEntry = this._registerButton(confirmBtn, { type: 'confirm' });
+      confirmBtn.on(Event.TOUCH_END, () => this._commitCounter());
+    }
+  }
+
+  _decorateOptionButton(btn, opt, mode){
+    const hasNote = opt && opt.note;
+    const iconPath = opt && opt.icon;
+    const noteColorList = (this._palette && this._palette.noteColor) || 'rgba(31,42,68,0.72)';
+    const noteColorGrid = (this._palette && this._palette.gridNoteColor) || 'rgba(255,255,255,0.86)';
+    if (opt && opt.label != null) btn.setText(String(opt.label));
+    btn.label.fitToTextWidth = false;
+    if (mode === 'grid'){
+      btn.label.width = btn._w - 12;
+      btn.label.textAlign = 'center';
+      let labelY = hasNote ? btn._h - 54 : Math.round(btn._h / 2) - 18;
+      if (iconPath){
+        labelY = hasNote ? btn._h - 54 : 74;
+        const icon = new Sprite(56, 56);
+        icon.width = 56; icon.height = 56;
+        try { icon.image = iconPath; } catch(_) {}
+        icon.moveTo(Math.round((btn._w - 56)/2), 12);
+        btn.addChild(icon);
+      }
+      btn.label.moveTo(6, labelY);
+      if (hasNote){
+        const note = new Label(String(opt.note));
+        note.font = '14px system-ui, sans-serif';
+        note.color = noteColorGrid;
+        note.width = btn._w - 12;
+        note.textAlign = 'center';
+        note.moveTo(6, btn.label.y + 26);
+        btn.addChild(note);
+      }
+    } else {
+      const iconOffset = iconPath ? 64 : 0;
+      const labelX = 18 + iconOffset;
+      btn.label.width = btn._w - labelX - 16;
+      btn.label.textAlign = 'left';
+      btn.label.moveTo(labelX, hasNote ? 10 : Math.round((btn._h - 24) / 2));
+      if (iconPath){
+        const icon = new Sprite(48, 48);
+        icon.width = 48; icon.height = 48;
+        try { icon.image = iconPath; } catch(_) {}
+        icon.moveTo(18, Math.round((btn._h - 48) / 2));
+        btn.addChild(icon);
+      }
+      if (hasNote){
+        const note = new Label(String(opt.note));
+        note.font = '14px system-ui, sans-serif';
+        note.color = noteColorList;
+        note.width = btn._w - labelX - 16;
+        note.textAlign = 'left';
+        note.moveTo(labelX, btn.label.y + 28);
+        btn.addChild(note);
+      }
+    }
+    if (opt && opt.disabled) btn.setEnabled(false);
+  }
+
+  _setupRangeDefaults(){
+    const range = this._range || {};
+    let min = Number.isFinite(range.min) ? +range.min : 0;
+    let max = Number.isFinite(range.max) ? +range.max : min + 10;
+    if (max < min) max = min;
+    let step = Number.isFinite(range.step) && range.step > 0 ? +range.step : 1;
+    let value = Number.isFinite(range.default) ? +range.default : min;
+    if (value < min || value > max) value = min;
+    if (step <= 0) step = 1;
+    if ((value - min) % step !== 0) value = min;
+    this._minValue = min;
+    this._maxValue = max;
+    this._stepValue = step;
+    this._currentValue = value;
+    this._unitLabel = range.unitLabel ? String(range.unitLabel) : '';
+  }
+
+  _changeCounter(delta){
+    if (this._locked) return;
+    const next = Math.max(this._minValue, Math.min(this._maxValue, this._currentValue + delta));
+    if (next === this._currentValue) return;
+    this._currentValue = next;
+    this._updateCounterDisplay();
+  }
+
+  _updateCounterDisplay(){
+    if (!this._valueLabel) return;
+    const text = this._unitLabel ? (this._currentValue + this._unitLabel) : String(this._currentValue);
+    this._valueLabel.text = text;
+    this._applyCounterLimits();
+  }
+
+  _composeFooterButtons(){
+    // deprecated placeholder
+  }
+
+  _registerButton(button, info={}){
+    const entry = {
+      button,
+      permaDisabled: !!info.permaDisabled,
+      type: info.type || null
+    };
+    this._buttons.push(entry);
+    return entry;
+  }
+
+  _setButtonsEnabled(flag){
+    for (const entry of this._buttons){
+      if (entry.permaDisabled) continue;
+      entry.button.setEnabled(flag);
+    }
+    if (flag) this._applyCounterLimits();
+  }
+
+  _applyCounterLimits(){
+    if (this._selectorType !== 'counter') return;
+    const canDec = !this._locked && this._currentValue > this._minValue;
+    const canInc = !this._locked && this._currentValue < this._maxValue;
+    if (this._minusEntry && !this._minusEntry.permaDisabled){
+      this._minusEntry.button.setEnabled(canDec);
+    }
+    if (this._plusEntry && !this._plusEntry.permaDisabled){
+      this._plusEntry.button.setEnabled(canInc);
+    }
+    if (this._confirmEntry && !this._confirmEntry.permaDisabled){
+      this._confirmEntry.button.setEnabled(!this._locked);
+    }
+  }
+
+  _handleOptionSelect(opt){
+    if (this._locked || (opt && opt.disabled)) return;
+    const value = (opt && opt.value !== undefined) ? opt.value : (opt && opt.label !== undefined ? opt.label : null);
+    const meta = {};
+    if (opt && opt.label != null) meta.label = String(opt.label);
+    if (opt && opt.note) meta.note = String(opt.note);
+    if (opt && opt.icon) meta.icon = opt.icon;
+    this._commitResult(value, meta);
+  }
+
+  _commitCounter(){
+    if (this._locked) return;
+    const meta = {};
+    if (this._unitLabel) meta.unit = this._unitLabel;
+    meta.label = this._unitLabel ? (this._currentValue + this._unitLabel) : String(this._currentValue);
+    this._commitResult(this._currentValue, meta);
+  }
+
+  _commitResult(value, meta){
+    const payload = { key: this._key, value };
+    if (meta && Object.keys(meta).length){
+      payload.meta = { ...meta };
+    }
+    if (this._deps){
+      if (!payload.meta) payload.meta = {};
+      payload.meta.deps = this._deps;
+    }
+    this._lockInteraction(true);
+    try {
+      this._onComplete(payload);
+    } catch(err){
+      console.error('MenuScene onComplete error:', err);
+      this._showErrorMessage('エラーが発生しました。もう一度ためしてね。');
+      this._unlockAfterError();
+    }
+  }
+
+  _handleCancel(){
+    if (!this._onCancel || this._locked) return;
+    this._lockInteraction(true);
+    try {
+      this._onCancel();
+    } catch(err){
+      console.error('MenuScene onCancel error:', err);
+      this._showErrorMessage('戻る処理でエラーが発生しました。');
+      this._unlockAfterError();
+    }
+  }
+
+  _lockInteraction(finalize=false){
+    if (this._lockTimer){ clearTimeout(this._lockTimer); this._lockTimer = null; }
+    this._locked = true;
+    this._setButtonsEnabled(false);
+    if (!finalize && this._debounceMs > 0){
+      this._lockTimer = setTimeout(() => {
+        this._lockTimer = null;
+        this._locked = false;
+        this._setButtonsEnabled(true);
+      }, this._debounceMs);
+    }
+  }
+
+  _unlockAfterError(){
+    if (this._lockTimer){ clearTimeout(this._lockTimer); this._lockTimer = null; }
+    this._locked = false;
+    this._setButtonsEnabled(true);
+  }
+
+  _showErrorMessage(text){
+    if (!text) return;
+    if (!this._errorLabel){
+      this._errorLabel = new Label(text);
+      this._errorLabel.font = 'bold 16px system-ui, sans-serif';
+      this._errorLabel.color = (this._palette && this._palette.errorColor) || '#b00020';
+      this._errorLabel.textAlign = 'center';
+      this._errorLabel.width = this._window ? this._window.contentWidth : (this._body ? this._body.width : 320);
+      if (this._footer){
+        this._errorLabel.moveTo(0, Math.max(0, this._footer.y - 30));
+        this._window.content.addChild(this._errorLabel);
+      } else if (this._body){
+        this._errorLabel.moveTo(0, this._bodyCursor + 8);
+        this._body.addChild(this._errorLabel);
+      } else {
+        this.addChild(this._errorLabel);
+      }
+    }
+    this._errorLabel.text = text;
+    if (this._footer){
+      this._errorLabel.moveTo(0, Math.max(0, this._footer.y - 30));
     }
   }
 }

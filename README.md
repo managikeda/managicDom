@@ -261,6 +261,100 @@ core.start();
   });
   ```
 
+#### `MenuScene extends Scene`
+- Single-step selection scene. Requires `key` and `onComplete`; because it extends `Scene`, you can swap it in with `core.replaceScene(new MenuScene(opts))`.
+- Constructor: `new MenuScene({ key, title?, description?, uiPreset?, theme?, frameOverlay?, overlayPreset?, overlayOptions?, framePadding?, selectorType?, options?, range?, deps?, statusbar?, assets?, onComplete, onCancel?, debounceMs?, reuseOverlay?, colors? })`.
+- `uiPreset` selects a ready-made palette (`'default'`, `'warm'`, `'forest'`). Use `colors` to override pieces (`backgroundColor`, `buttonThemes`, `statusbarDefaults`, `noteColor`, etc.).
+- If `frameOverlay` is omitted the scene tries to reuse a `FrameOverlay` from the previous scene; otherwise it instantiates one based on `overlayPreset`/`overlayOptions`. Pass `reuseOverlay:false` to force creation of a new overlay.
+- `selectorType` can be `list` (default), `grid`, or `counter`. List/grid confirm immediately on tap. Counter uses `range`({ min, max, step, default, unitLabel }) with `-`/`+` buttons and a dedicated confirm button.
+- `options` entries accept `{ value, label, icon, disabled, note }`. Disabled items are non-interactive; icons are auto-laid out.
+- `statusbar` renders a `StatusBar` in the header; presets follow the palette, and `{ type: 'gauge'|'token', progress, label, ... }` overrides are merged.
+- `assets` lists extra resources that should be loaded via `Core.ensureAssets` before the UI appears. Failures downgrade gracefully.
+- On completion the scene calls `onComplete({ key, value, meta })`; `meta` may include `label`, `note`, `icon`, `unit`, `deps` and more. `debounceMs` (default 300ms) locks every button to avoid double taps; errors in callbacks show a toast-like message and unlock the UI.
+- When there are no options the scene displays “選択肢がありません” and only the back button (when `onCancel` is provided) stays enabled.
+- Example:
+  ```js
+  import { Core, Scene, Event } from './managic_dom.js';
+  import { MenuScene, FrameOverlay } from './managic_ui.js';
+
+  const core = new Core(768, 576);
+  const result = {};
+  let sharedOverlay = null;
+
+  const getUnits = (subject) => [
+    { id: 'fractions', name: '分数', summary: '割り算を使う単元' },
+    { id: 'geometry', name: '図形', summary: '角度と面積を学ぼう' }
+  ];
+
+  function createTitleScene(){
+    const scene = new Scene();
+    scene.backgroundColor = '#666';
+    const overlay = new FrameOverlay('arcade');
+    sharedOverlay = overlay;
+    scene.addChild(overlay);
+    scene.on(Event.ENTER, () => {
+      if (sharedOverlay && sharedOverlay.parentNode !== scene) scene.addChild(sharedOverlay);
+      if (sharedOverlay && typeof sharedOverlay.fitToCore === 'function') sharedOverlay.fitToCore();
+    });
+    scene.on(Event.TOUCH_END, () => showSubject());
+    return scene;
+  }
+
+  function showSubject(){
+    core.replaceScene(new MenuScene({
+      key: 'subject',
+      title: '教科をえらぼう',
+      description: 'あそびたい勉強をひとつえらんでね。',
+      uiPreset: 'forest',
+      frameOverlay: sharedOverlay,
+      selectorType: 'grid',
+      statusbar: { type: 'gauge', progress: 0.33, label: '1 / 3' },
+      options: [
+        { value: 'jp', label: '国語' },
+        { value: 'math', label: '算数' },
+        { value: 'sci', label: '理科' },
+        { value: 'soc', label: '社会', note: '地理や歴史など' }
+      ],
+      onComplete: ({ key, value }) => { result[key] = value; showUnit(); },
+      onCancel: () => { core.replaceScene(createTitleScene()); }
+    }));
+  }
+
+  function showUnit(){
+    core.replaceScene(new MenuScene({
+      key: 'unit',
+      title: '単元をえらぼう',
+      uiPreset: 'forest',
+      frameOverlay: sharedOverlay,
+      selectorType: 'list',
+      statusbar: { type: 'gauge', progress: 0.66, label: '2 / 3' },
+      deps: { subject: result.subject },
+      options: getUnits(result.subject).map(u => ({ value: u.id, label: u.name, note: u.summary })),
+      onComplete: ({ key, value }) => { result[key] = value; showQuestionCount(); },
+      onCancel: showSubject
+    }));
+  }
+
+  function showQuestionCount(){
+    core.replaceScene(new MenuScene({
+      key: 'count',
+      title: '問題のかず',
+      description: 'チャレンジする問題数をきめよう。',
+      uiPreset: 'forest',
+      frameOverlay: sharedOverlay,
+      selectorType: 'counter',
+      range: { min: 5, max: 30, step: 5, default: 10, unitLabel: '問' },
+      onComplete: ({ key, value }) => {
+        result[key] = value;
+        console.log('選択結果', result);
+        // 次のシーンへ差し替え…
+      },
+      onCancel: showUnit
+    }));
+  }
+  ```
+
+
 #### `LoadingScene extends Scene`
 - `Core.ensureAssets` を用いた追加読み込み用シーン。プログレスバー付き。
 - オプション: `{ files, next, label, barWidth, barHeight, barColor, barBgColor, barRadius }`。
