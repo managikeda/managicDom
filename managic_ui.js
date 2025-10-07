@@ -686,8 +686,7 @@ export class FrameOverlay extends Group {
     // reset
     st.background   = 'transparent';
     st.border       = '0';
-    st.boxShadow    = 'inset 0 0 8px #111, 5px 5px 5px 15px ' +
-                      getComputedStyle(document.body).backgroundColor;// 親要素の背景色のシャドウで隙間を覆う
+    st.boxShadow    = 'inset 0 0 8px #aaa, 5px 5px 5px 15px ' + getComputedStyle(document.body).backgroundColor;// 親要素の背景色のシャドウで隙間を覆う
     st.borderImage  = 'none';
     st.borderRadius = '';
 
@@ -697,7 +696,7 @@ export class FrameOverlay extends Group {
         st.borderRadius = '10px';
         break;
       case 'bezel':
-        st.border = '18px solid rgb(127, 90, 172)';
+        st.border = '18px solid rgb(127, 90, 172)';1
         st.borderRadius = '8px';
         break;
       case 'rounded':
