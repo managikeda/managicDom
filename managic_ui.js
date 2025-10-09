@@ -192,7 +192,6 @@ export class UIButton extends Group {
   }
 
   setSize(w,h){
-    console.log("btn setSize", w, h);
     this._w=w|0; this._h=h|0;
     if (this._bgSprite){ this._bgSprite.width=this._w; this._bgSprite.height=this._h; }
     if (this._bg){ this._bg.width=this._w; this._bg.height=this._h; }
@@ -233,7 +232,6 @@ export class UIButton extends Group {
     this.label.x = Math.round((this._w - this.label.textWidth)/2);
     //this.label.y = Math.round((this._h - this.label.height)/2);
     this.label.y = Math.floor(this._h/2 - this.label.height*this.label.lineHeight/2);
-    console.log(this.label.height,this.label.lineHeight,this.label.textHeight);
   }
 
   _applyState(state){
@@ -1075,7 +1073,7 @@ export class CharSprite extends Group {
     this.body.x = -(Math.round((natW * s) / 2));
     this.body.y = -(Math.round((natH * s) / 2));
   }
-}
+}//CharSprite
 
 export class StatusBar extends Group {
   /**
@@ -1195,15 +1193,15 @@ export class StatusBar extends Group {
         break;
       case 'right':
       this.label.x = this._w + pad;
-      this.label.y = Math.round((this._h - this.label.height)/2);
+      this.label.y = 0;//Math.round((this._h - this.label.height)/2);
       break;
       case 'bottom':
         this.label.x = 0;
         this.label.y = this._h + pad;
         break;
       default: // left
-        this.label.x = -(this.label.width + pad);
-        this.label.y = Math.round((this._h - this.label.height)/2);
+        this.label.x = -(this.label.textWidth + pad);
+        this.label.y = 0;
         break;
     }
   }
@@ -2166,7 +2164,6 @@ export class MenuScene extends Scene {
     //const estimatedHeight = this._selectorType === 'counter' ? 320 : Math.max(320, 240 + this._options.length * (this._selectorType === 'grid' ? 80 : 60));
     const winW = stageW - margin * 2;//Math.max(320, stageW - margin * 2);
     const winH = stageH - margin * 2;//Math.max(stageH - margin * 2, Math.max(280, estimatedHeight));
-    //console.log(`MenuScene _buildUI winW=${winW} winH=${winH}`);
     this._window = new FrameWindow(winW, winH, this._theme);
     if (this._framePadding) this._window.padding = this._framePadding;
     this._window.moveTo(Math.round((stageW - this._window._w) / 2), Math.round((stageH - this._window._h) / 2));
@@ -2187,13 +2184,10 @@ export class MenuScene extends Scene {
     this._headerHeight = this._composeHeader();
     if (this._header) this._header.height = this._headerHeight;
     const headerOffset = this._headerHeight > 0 ? this._headerHeight + MENU_SCENE_HEADER_BODY_GAP : 0;
-    console.log(headerOffset);
-    console.log(`MenuScene _buildUI headerOffset=${headerOffset}`);
     const bodyHeight = Math.max(
       0,
       contentHeight - footerHeight - headerOffset - (needFooter ? MENU_SCENE_BODY_FOOTER_GAP : 0)
     );
-    console.log(`MenuScene _buildUI bodyHeight=${bodyHeight}`);
     this._body = new Entity(contentWidth, bodyHeight);
     this._body._element.style.overflowY = 'auto';
     this._body._element.style.overflowX = 'hidden';
@@ -2286,7 +2280,6 @@ export class MenuScene extends Scene {
       //desc.moveTo(this._header.width-(width+16), this._header.y);
       this._header.addChild(desc);
       y += descHeight;
-      console.log(descHeight);
     }
     return y;
   }

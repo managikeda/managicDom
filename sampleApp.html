@@ -66,7 +66,7 @@
         scene.addChild(overlay);
         sharedOverlay = overlay;
 
-        const logo = new Label('https://sampleapp.com');
+        const logo = new Label('まなゲーらんど');
         logo.font = 'bold 20px system-ui';
         logo.color = '#fff';
         overlay.addPart(logo);
@@ -236,21 +236,6 @@
         const scene = new Scene();
         scene.backgroundColor = '#888';
 
-        // const overlay = new FrameOverlay('arcade');
-        // overlay.x = 0; overlay.y = 0;
-        // scene.addChild(overlay);
-
-        // パーツ追加（自動配置なし → 自分で座標指定）
-        // const logo = new Label('MY GAME');
-        // logo.font = 'bold 20px system-ui';
-        // logo.color = '#fff';
-        // overlay.addPart(logo);
-        // logo.x = 12;
-        // logo.y = 8;
-
-        // 9-slice 画像フレーム
-        // frame.useImageFrame('./frame.png', 24, 'stretch');
-
         //背景イメージ
         const bg = new Sprite(1536, 1023);//832, 1216
         bg.image = core.assets['./assets/bg/bg_forestMakai.png'];
@@ -259,15 +244,6 @@
         bg.scaleX = 0.67;
         bg.scaleY = 0.67;
         scene.addChild(bg);
-
-        //キャラクターイメージ
-        // const charaimage = new Sprite(1024, 1536);//832, 1216
-        // charaimage.image = core.assets['./image/sd/char_behimos_default.png'];
-        // charaimage.x = -100;
-        // charaimage.y = -400;
-        // charaimage.scaleX = 0.5;
-        // charaimage.scaleY = 0.5;
-        // scene.addChild(charaimage);
 
         const chara = new CharSprite('behimos', { baseDir:'./assets/chara', width:512, height:768, fit:true });
         chara.x = core.width/2-chara.width/2; chara.y = 0;
@@ -309,6 +285,7 @@
         // ac.play('blink', {color:'rgba(255,255,255,1)', times: 4 });
         //hpBar.setValue(85, true);
         hpBar.addValue(-15, true);
+        hpBar2.addValue(-(Math.floor(Math.random()*1000)-500), true);
         life.addValue(1, true);
         //chara.setDiff('smile');
       };
@@ -358,17 +335,6 @@
         }
       };
 
-      // player.tl
-      //   .moveBy(200, 0, 30, 'easeOutQuad').and()
-      //   .rotateTo(320, 30, 'easeInOutQuad')
-      //   .moveBy(-200, 0, 30, 'easeInQuad').and()
-      //   .rotateTo(-720, 30, 'easeInOutQuad')
-      //   .moveBy(200, 100, 30, 'easeInCubic').and().fadeTo(0.5, 30, 'easeInOutQuad')
-      //   .moveBy(-200, -100, 30, 'easeOutCubic').and().fadeTo(1, 30, 'easeInCubic')
-      //   .moveBy(0, 200, 30, 'easeInOutCubic')
-      //   .moveBy(0, -200, 30, 'easeInOutQuad')
-      //   .loop();
-
       // 1) FrameWindow の利用
       const win = new FrameWindow(core.width-48, 200, 'panel');   // プリセット: 'panel' | 'dark' | 'glass' | 'accent'
       win.x = 24; win.y = core.height-224;
@@ -398,6 +364,7 @@
           x: core.width-220-20, y: 16,
           width: 220, height: 18,
           label: 'HP',
+          color: '#ccc',
           bgColor: '#222',
           barColor: '#e74c3c',
           radius: 8,
@@ -405,6 +372,19 @@
           max: 120, value: 120
         });
         scene.addChild(hpBar);
+
+        const hpBar2 = new StatusBar('gauge', {
+          width: 840, height: 24,
+          x: (core.width-840)/2, y: 320,
+          label: 'ENEMY',
+          color: '#ccc',
+          bgColor: '#555',
+          barColor: '#e74c3c',
+          radius: 12,
+          showValue: true,
+          max: 1120, value: 1120
+        });
+        scene.addChild(hpBar2);
 
         // ダメージを受けた
         // hpBar.setValue(85, true);   // アニメ付きで 85/120 に
@@ -416,6 +396,7 @@
         const life = new StatusBar('tokens', {
           x: core.width-240, y: 46,
           label: 'LIFE',
+          color: '#ccc',
           tokenSize: 22,
           symbolFilled: '🩷',
           symbolEmpty: '♡',
