@@ -230,8 +230,10 @@ export class UIButton extends Group {
     // 2) はみ出していればフォントを縮める
     this._fitTextToWidth(innerW);
     // 3) 中央寄せ
-    this.label.x = Math.round((this._w - this.label.width)/2);
-    this.label.y = Math.round((this._h - this.label.height)/2);
+    this.label.x = Math.round((this._w - this.label.textWidth)/2);
+    //this.label.y = Math.round((this._h - this.label.height)/2);
+    this.label.y = Math.floor(this._h/2 - this.label.height*this.label.lineHeight/2);
+    console.log(this.label.height,this.label.lineHeight,this.label.textHeight);
   }
 
   _applyState(state){
@@ -1103,12 +1105,12 @@ export class StatusBar extends Group {
     // ラベル（“何のバーか”の説明）
     this.label = new Label(opt.label || '');
     this.label.font = opt.font || 'bold 14px system-ui, sans-serif';
-    this.label.color = opt.color || '#fff';
+    this.label.color = opt.color || '#666';
     this.label._element.style.pointerEvents = 'none';
-    this.addChild(this.label);
+    // this.addChild(this.label);
 
     this.labelAlign = opt.labelAlign || 'left';
-
+    
     // ---- ゲージ型UI ----
     if (this.type === 'gauge'){
       this.padding = (opt.padding!=null ? +opt.padding : 4);
@@ -1162,6 +1164,7 @@ export class StatusBar extends Group {
 
     // label の初期配置
     this._layoutLabel();
+    this.addChild(this.label);
   }
 
   // ================= 公開 API ================
@@ -1186,10 +1189,14 @@ export class StatusBar extends Group {
         this.label.x = 0;
         this.label.y = -(this.label.height + pad);
         break;
-      case 'right':
-        this.label.x = this._w + pad;
-        this.label.y = Math.round((this._h - this.label.height)/2);
+      case 'top-right':
+        this.label.x = this._w - this.label.textWidth - pad;
+        this.label.y = -(this.label.height + pad);
         break;
+      case 'right':
+      this.label.x = this._w + pad;
+      this.label.y = Math.round((this._h - this.label.height)/2);
+      break;
       case 'bottom':
         this.label.x = 0;
         this.label.y = this._h + pad;
@@ -1799,9 +1806,11 @@ export class LoadingScene extends Scene {
       core.popScene();
     }
   }
-}
+}//LoadingScene
 
-
+// =============================
+// MenuScene
+// =============================
 const MENU_SCENE_BUTTON_THEMES = {
   blue: {
     normal:  { bg:'#2b87ff', border:'#0f5bd5', color:'#fff' },
@@ -1840,6 +1849,9 @@ const MENU_SCENE_BUTTON_THEMES = {
     disabled:{ bg:'#e4aa8a', border:'#c27856', color:'#fff4ec' }
   }
 };
+
+const MENU_SCENE_HEADER_BODY_GAP = 5;
+const MENU_SCENE_BODY_FOOTER_GAP = 8;
 
 function cloneButtonTheme(theme){
   if (!theme) return null;
@@ -1897,11 +1909,32 @@ const MENU_SCENE_PRESETS = {
     emptyMessageColor: '#b00020',
     overlay: { preset: 'arcade', options: {} },
     statusbarDefaults: {
-      gauge: { bgColor:'#24426f', barColor:'#4fc3f7', valueColor:'#fff', showValue:true },
+      gauge: { bgColor:'#24426f', barColor:'#4fc3f7', valueColor:'#fff', showValue:true, color:'#00f', labelAlign:'top-right' },
       tokens: { symbolFilled:'●', symbolEmpty:'○', tokenSize:20, spacing:6 }
     },
     buttonThemes: {
       primary: MENU_SCENE_BUTTON_THEMES.blue,
+      secondary: MENU_SCENE_BUTTON_THEMES.gray,
+      accent: MENU_SCENE_BUTTON_THEMES.blue
+    }
+  },
+  dark: {
+    backgroundColor: 'rgb(83, 83, 83)',
+    frameTheme: 'dark',
+    framePadding: { top:28, right:32, bottom:28, left:32 },
+    titleColor: 'rgba(160, 165, 181, 0.9)',
+    descriptionColor: 'rgba(172, 177, 100, 0.9)',
+    noteColor: 'rgb(49, 49, 49)',
+    errorColor: '#b00020',
+    counterValueColor: '#1f2a44',
+    emptyMessageColor: '#b00020',
+    overlay: { preset: 'arcade', options: {} },
+    statusbarDefaults: {
+      gauge: { bgColor:'#111', barColor:'rgba(255, 215, 72, 0.9)', valueColor:'#fff', showValue:true, color:'rgba(160, 165, 181, 0.9)', labelAlign:'top-right' },
+      tokens: { symbolFilled:'●', symbolEmpty:'○', tokenSize:20, spacing:6 }
+    },
+    buttonThemes: {
+      primary: MENU_SCENE_BUTTON_THEMES.rust,
       secondary: MENU_SCENE_BUTTON_THEMES.gray,
       accent: MENU_SCENE_BUTTON_THEMES.blue
     }
@@ -1930,9 +1963,9 @@ const MENU_SCENE_PRESETS = {
   forest: {
     backgroundColor: 'rgba(232,245,236,0.9)',
     frameTheme: 'dark',
-    framePadding: { top:28, right:32, bottom:32, left:32 },
-    titleColor: '#1f3b2d',
-    descriptionColor: '#1f3b2d',
+    framePadding: { top:10, right:32, bottom:32, left:32 },
+    titleColor: '#999',
+    descriptionColor: 'rgba(232,245,236,0.9)',
     noteColor: 'rgba(31,59,45,0.75)',
     errorColor: '#ba1a1a',
     counterValueColor: '#1f3b2d',
@@ -2129,10 +2162,11 @@ export class MenuScene extends Scene {
     this.width = stageW;
     this.height = stageH;
 
-    const margin = 48;
-    const estimatedHeight = this._selectorType === 'counter' ? 320 : Math.max(320, 240 + this._options.length * (this._selectorType === 'grid' ? 80 : 60));
-    const winW = Math.max(320, stageW - margin * 2);
-    const winH = Math.min(stageH - margin * 2, Math.max(280, estimatedHeight));
+    const margin = Math.min(48, Math.floor(stageW/10), Math.floor(stageH/10));
+    //const estimatedHeight = this._selectorType === 'counter' ? 320 : Math.max(320, 240 + this._options.length * (this._selectorType === 'grid' ? 80 : 60));
+    const winW = stageW - margin * 2;//Math.max(320, stageW - margin * 2);
+    const winH = stageH - margin * 2;//Math.max(stageH - margin * 2, Math.max(280, estimatedHeight));
+    //console.log(`MenuScene _buildUI winW=${winW} winH=${winH}`);
     this._window = new FrameWindow(winW, winH, this._theme);
     if (this._framePadding) this._window.padding = this._framePadding;
     this._window.moveTo(Math.round((stageW - this._window._w) / 2), Math.round((stageH - this._window._h) / 2));
@@ -2141,18 +2175,32 @@ export class MenuScene extends Scene {
     const content = this._window.content;
     const contentWidth = this._window.contentWidth;
     const contentHeight = this._window.contentHeight;
-
     const needFooter = (this._selectorType === 'counter') || !!this._onCancel;
     const footerHeight = needFooter ? 72 : 0;
-    const bodyHeight = Math.max(0, contentHeight - footerHeight);
 
+    this._header = new Group();
+    this._header.width = contentWidth;
+    this._header.height = 0;
+    this._header.x = 0;
+    this._header.y = 0;
+    content.addChild(this._header);
+    this._headerHeight = this._composeHeader();
+    if (this._header) this._header.height = this._headerHeight;
+    const headerOffset = this._headerHeight > 0 ? this._headerHeight + MENU_SCENE_HEADER_BODY_GAP : 0;
+    console.log(headerOffset);
+    console.log(`MenuScene _buildUI headerOffset=${headerOffset}`);
+    const bodyHeight = Math.max(
+      0,
+      contentHeight - footerHeight - headerOffset - (needFooter ? MENU_SCENE_BODY_FOOTER_GAP : 0)
+    );
+    console.log(`MenuScene _buildUI bodyHeight=${bodyHeight}`);
     this._body = new Entity(contentWidth, bodyHeight);
     this._body._element.style.overflowY = 'auto';
     this._body._element.style.overflowX = 'hidden';
     this._body._element.style.boxSizing = 'border-box';
     this._body._element.style.paddingRight = '16px';
     this._body._element.style.paddingBottom = '8px';
-    this._body.moveTo(0, 0);
+    this._body.moveTo(0, headerOffset);
     content.addChild(this._body);
 
     this._footer = null;
@@ -2161,7 +2209,7 @@ export class MenuScene extends Scene {
       this._footer.width = contentWidth;
       this._footer.height = footerHeight;
       this._footer.x = 0;
-      this._footer.y = bodyHeight + 8;
+      this._footer.y = contentHeight - footerHeight;
       content.addChild(this._footer);
     }
 
@@ -2175,8 +2223,9 @@ export class MenuScene extends Scene {
   }
 
   _composeHeader(){
-    const width = this._body.width || this._window.contentWidth;
-    let y = this._bodyCursor || 0;
+    if (!this._header) return 0;
+    const width = this._header.width || this._window.contentWidth;
+    let y = 0;
     if (this._title){
       const title = new Label(this._title);
       title.font = 'bold 26px system-ui, sans-serif';
@@ -2184,8 +2233,8 @@ export class MenuScene extends Scene {
       title.textAlign = 'left';
       title.width = width;
       title.moveTo(0, y);
-      this._body.addChild(title);
-      y += 36;
+      this._header.addChild(title);
+      y += title.height+15;//36;
     }
     if (this._statusbarOpt){
       const typeKey = (this._statusbarOpt.type === 'token') ? 'tokens' : (this._statusbarOpt.type || 'gauge');
@@ -2200,12 +2249,13 @@ export class MenuScene extends Scene {
       const sbOptions = Object.assign({
         width: width,
         label: sbUser.label || '',
+        color: sbUser.color || '#666',
         labelAlign: sbUser.labelAlign || 'top'
       }, baseDefaults, sbUser);
       const statusBar = new StatusBar(typeKey, sbOptions);
       statusBar.moveTo(0, y);
-      this._body.addChild(statusBar);
-      y += statusBar.height + 12;
+      this._header.addChild(statusBar);
+      y += statusBar.height + 5;
       if (typeKey === 'tokens'){
         const tokenMax = tokenCount != null ? Math.max(1, +tokenCount) : (sbOptions.max != null ? +sbOptions.max : statusBar.max);
         statusBar.setMax(tokenMax);
@@ -2224,7 +2274,7 @@ export class MenuScene extends Scene {
     }
     if (this._description){
       const lines = this._description.split(/\r?\n/);
-      const descHeight = Math.min(140, Math.max(60, lines.length * 28));
+      const descHeight = Math.min(140, Math.min(60, lines.length * 28));
       const desc = new LabelArea(width, descHeight, {
         text: this._description,
         font: '18px system-ui, sans-serif',
@@ -2233,10 +2283,12 @@ export class MenuScene extends Scene {
       });
       desc.skipAll();
       desc.moveTo(0, y);
-      this._body.addChild(desc);
-      y += descHeight + 16;
+      //desc.moveTo(this._header.width-(width+16), this._header.y);
+      this._header.addChild(desc);
+      y += descHeight;
+      console.log(descHeight);
     }
-    this._bodyCursor = y;
+    return y;
   }
 
   _composeSelection(){
@@ -2264,7 +2316,7 @@ export class MenuScene extends Scene {
   }
 
   _composeListOptions(startY){
-    const width = this._body.width || this._window.contentWidth;
+    const width = this._body.width-20 || this._window.contentWidth;
     const gap = 12;
     let y = startY;
     for (const opt of this._options){
@@ -2273,7 +2325,7 @@ export class MenuScene extends Scene {
       const buttonHeight = hasNote ? 88 : 64;
       const btn = new UIButton(width, buttonHeight, {
         text: labelText,
-        maxFontSize: 20,
+        maxFontSize: 32,
         minFontSize: 14,
         paddingX: 18,
         paddingY: 12
@@ -2293,18 +2345,18 @@ export class MenuScene extends Scene {
   }
 
   _composeGridOptions(startY){
-    const width = this._body.width || this._window.contentWidth;
+    const width = this._body.width-20 || this._window.contentWidth;
     const gapX = 12;
     const gapY = 12;
     const columns = (width >= 540 && this._options.length >= 5) ? 3 : 2;
     const btnWidth = Math.max(140, Math.floor((width - gapX * (columns - 1)) / columns));
-    const btnHeight = 130;
+    const btnHeight = 110;
     let y = startY;
     this._options.forEach((opt, index) => {
       const labelText = (opt && opt.label != null) ? String(opt.label) : (opt && opt.value != null ? String(opt.value) : '選択');
       const btn = new UIButton(btnWidth, btnHeight, {
         text: labelText,
-        maxFontSize: 20,
+        maxFontSize: 32,
         minFontSize: 12,
         paddingX: 12,
         paddingY: 12
@@ -2389,13 +2441,15 @@ export class MenuScene extends Scene {
     const hasNote = opt && opt.note;
     const iconPath = opt && opt.icon;
     const noteColorList = (this._palette && this._palette.noteColor) || 'rgba(31,42,68,0.72)';
-    const noteColorGrid = (this._palette && this._palette.gridNoteColor) || 'rgba(255,255,255,0.86)';
+    const noteColorGrid = (this._palette && this._palette.noteColor) || 'rgba(255,255,255,0.86)';
     if (opt && opt.label != null) btn.setText(String(opt.label));
     btn.label.fitToTextWidth = false;
     if (mode === 'grid'){
       btn.label.width = btn._w - 12;
       btn.label.textAlign = 'center';
-      let labelY = hasNote ? btn._h - 54 : Math.round(btn._h / 2) - 18;
+      //let labelY = hasNote ? btn._h - 54 : Math.round(btn._h / 2) - 18;
+      let labelY = Math.round(btn._h / 2) - btn.label.fontSize/2 -5;
+      if(hasNote)labelY -= 15;
       if (iconPath){
         labelY = hasNote ? btn._h - 54 : 74;
         const icon = new Sprite(56, 56);
@@ -2411,12 +2465,14 @@ export class MenuScene extends Scene {
         note.color = noteColorGrid;
         note.width = btn._w - 12;
         note.textAlign = 'center';
-        note.moveTo(6, btn.label.y + 26);
+        note.moveTo(6, btn.label.y + btn.label.fontSize + 15);
+        note.touchEnabled = false;
+        if (note._element) note._element.style.pointerEvents = 'none';
         btn.addChild(note);
       }
     } else {
       const iconOffset = iconPath ? 64 : 0;
-      const labelX = 18 + iconOffset;
+      const labelX = (btn._w * .05) + iconOffset;
       btn.label.width = btn._w - labelX - 16;
       btn.label.textAlign = 'left';
       btn.label.moveTo(labelX, hasNote ? 10 : Math.round((btn._h - 24) / 2));
@@ -2433,9 +2489,15 @@ export class MenuScene extends Scene {
         note.color = noteColorList;
         note.width = btn._w - labelX - 16;
         note.textAlign = 'left';
-        note.moveTo(labelX, btn.label.y + 28);
+        //note.moveTo(labelX, btn.label.y + 28);
+        note.moveTo(labelX, Math.min(btn.label.y + btn.label.fontSize + 15, btn._h - (note.fontSize + 5)));
+        note.touchEnabled = false;
+        if (note._element) note._element.style.pointerEvents = 'none';
         btn.addChild(note);
       }
+    }
+    if (btn._hit){
+      btn.addChild(btn._hit);
     }
     if (opt && opt.disabled) btn.setEnabled(false);
   }
@@ -2600,4 +2662,4 @@ export class MenuScene extends Scene {
       this._errorLabel.moveTo(0, Math.max(0, this._footer.y - 30));
     }
   }
-}
+}//MenuScene
