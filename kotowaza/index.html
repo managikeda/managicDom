@@ -8,8 +8,8 @@
 <body>
   <div id="managic-stage"></div>
   <script type="module">
-    import { Core, Scene, Sprite, Label, loadGoogleFont, TileMap, Rect, Circle } from './managic_dom.js';
-    import { FrameWindow, CharSprite, UIButton, LabelArea, StatusBar, FrameOverlay, AnimatedCover, Particle, LoadingScene, MenuScene } from './managic_ui.js?ver=0.11';
+    import { Core, Scene, Sprite, Label, loadGoogleFont, TileMap, Rect, Circle } from '../managic_dom.js';
+    import { FrameWindow, CharSprite, UIButton, LabelArea, StatusBar, FrameOverlay, AnimatedCover, Particle, LoadingScene, MenuScene } from '../managic_ui.js';
 
     // --- google fontをプリロード ---
     const FONTS = [
@@ -38,7 +38,11 @@
         './image/chara1.png',
         './image/chara3.png',
         './assets/bg/bg_forest_elf.png',
-        './image/map1.png'
+        './image/map1.png',
+        './assets/chara/standing/elfRanger_default.png',
+        './assets/chara/standing/dwfFighter_default.png',
+        './assets/chara/standing/humKnight_default.png',
+        './assets/chara/standing/behimos_default.png',
     ]);
 
     // --- グローバル変数 ---
@@ -66,7 +70,7 @@
         scene.addChild(overlay);
         sharedOverlay = overlay;
 
-        const logo = new Label('まなゲーらんど');
+        const logo = new Label('まなゲーらんど / ことわざQUIZ');
         logo.font = 'bold 20px system-ui';
         logo.color = '#fff';
         overlay.addPart(logo);
@@ -84,6 +88,11 @@
         bg.scaleX = 0.67;
         bg.scaleY = 0.67;
         scene.addChild(bg);
+
+        //キャラクター
+        const chara = new CharSprite('dwfFighter', { baseDir:'./assets/chara/standing', width:512, height:768, fit:true });
+        chara.x = core.width/2-chara.width/2; chara.y = 0;
+        scene.addChild(chara);
 
         
         // 2) UIButton の利用（画像なし＝CSSテーマボタン）
@@ -140,10 +149,10 @@
         //       './assets/bg/bg_dangeon01.png',
         //       './assets/bg/bg_dangeon02.png',
         //       './assets/bg/bg_forestMakai.png',
-        //       './assets/chara/elfRanger_default.png',
-        //       './assets/chara/elfRanger_smile.png',
-        //       './assets/chara/humKnight_default.png',
-        //       './assets/chara/behimos_default.png',
+        //       './assets/chara/chara_elfRanger_default.png',
+        //       './assets/chara/chara_elfRanger_smile.png',
+        //       './assets/chara/chara_humKnight_default.png',
+        //       './assets/chara/chara_behimos_default.png',
         //     ],
         //     next: createGameScene, // 文字列 or (core)=>Scene or Scene
         //     label: 'Now Loading...',
@@ -215,10 +224,11 @@
                     './assets/bg/bg_dangeon01.png',
                     './assets/bg/bg_dangeon02.png',
                     './assets/bg/bg_forestMakai.png',
-                    './assets/chara/elfRanger_default.png',
-                    './assets/chara/elfRanger_smile.png',
-                    './assets/chara/humKnight_default.png',
-                    './assets/chara/behimos_default.png',
+                    './assets/chara/standing/elfRanger_default.png',
+                    './assets/chara/standing/elfRanger_smile.png',
+                    './assets/chara/standing/dwfFighter_default.png',
+                    './assets/chara/standing/humKnight_default.png',
+                    './assets/chara/standing/behimos_default.png',
                   ],
                   next: createGameScene, // 文字列 or (core)=>Scene or Scene
                   label: 'Now Loading...',

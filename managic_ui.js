@@ -833,7 +833,8 @@ export class CharSprite extends Group {
   listDiffsFromAssets() {
     const core = Core.instance;
     if (!core) return Array.from(this._diffs);
-    const re = new RegExp(`(?:^|/)char(?:a)?_${this.name}_(\\w+)\\.png$`, 'i');
+    // const re = new RegExp(`(?:^|/)char(?:a)?_${this.name}_(\\w+)\\.png$`, 'i');
+    const re = new RegExp(`(?:^|/)${this.name}_(\\w+)\\.png$`, 'i');
     Object.keys(core.assets || {}).forEach((k) => {
       const m = re.exec(k);
       if (m) this._diffs.add(m[1]);
@@ -981,7 +982,8 @@ export class CharSprite extends Group {
   _buildUrl(name, diff) {
     const a = `${this.baseDir}/chara_${name}_${diff}.png`;
     const b = `${this.baseDir}/char_${name}_${diff}.png`;
-    return [a, b];
+    const c = `${this.baseDir}/${name}_${diff}.png`;
+    return [a, b, c];
   }
 
   _setImage(urlOrArr) {
@@ -1029,10 +1031,20 @@ export class CharSprite extends Group {
   }
 
   _applyFit() {
+    console.log("applyFit")
+    console.log(this._w)
+    console.log(this.width)
+    console.log(this.body.width)
+    console.log(this._h)
+    console.log(this.height)
+    console.log(this.body.height)
     // ターゲット枠（CharSprite の外寸）
     const targetW = (this._w || this.width || this.body.width || 0)|0;
     const targetH = (this._h || this.height || this.body.height || 0)|0;
     if (!targetW || !targetH) return;
+
+    console.log("targetW", targetW)
+    console.log("targetH", targetH)
 
     // フレームサイズを確定
     this.width  = targetW;
@@ -1064,10 +1076,15 @@ export class CharSprite extends Group {
     const sx = targetW / natW;
     const sy = targetH / natH;
     const s  = Math.min(1, sx, sy);
+    //??s=0.5ならシュリンクして0.5だとしないのはなぜ？
     if(s < 1){
       this.body._shrink = s;
     }
     this.body.scaleX = this.body.scaleY = s;
+
+    console.log("sx", sx)
+    console.log("sy", sy)
+    console.log("s", s)
 
     // （3）中央寄せ（中心基準の式に修正）
     this.body.x = -(Math.round((natW * s) / 2));
