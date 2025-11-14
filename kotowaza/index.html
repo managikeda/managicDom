@@ -34,14 +34,12 @@
     const core = new Core(1024, 576);//480, 320
     core.fps = 30;
     core.preload([
-        './image/player.png',
-        './image/chara1.png',
-        './image/chara3.png',
         './assets/bg/bg_forest_elf.png',
-        './image/map1.png',
-        './assets/chara/standing/elfRanger_default.png',
-        './assets/chara/standing/dwfFighter_default.png',
-        './assets/chara/standing/humKnight_default.png',
+        './assets/bg/bg_library01.png',
+        './assets/bg/bg_library02.png',
+        './assets/bg/bg_library03.png',
+        './assets/chara/standing/eliza_default.png',
+        './assets/chara/standing/lucas_default.png',
         './assets/chara/standing/behimos_default.png',
     ]);
 
@@ -77,90 +75,71 @@
         logo.x = 10;
         logo.y = 0;
 
-        // 9-slice 画像フレーム
-        // frame.useImageFrame('./frame.png', 24, 'stretch');
-
         //背景イメージ
-        const bg = new Sprite(1536, 1023);//832, 1216
-        bg.image = core.assets['./assets/bg/bg_forest_elf.png'];
-        bg.y = (-1023*0.33)/2;
-        bg.x = (-1536*0.33)/2;
-        bg.scaleX = 0.67;
-        bg.scaleY = 0.67;
+        //背景に使う画像を指定
+        const bgImage = core.assets['./assets/bg/bg_library01.png'];
+          //画像の解像度に合わせたサイズでSpriteを作成
+          const bg = new Sprite(bgImage.width, bgImage.height);
+          bg.image = bgImage;
+          //スプライトの中央が画面中央になるように位置を調整
+          bg.x = (core.width - bgImage.width) / 2;
+          bg.y = (core.height - bgImage.height) / 2;
+          //スプライトのサイズを画面サイズに合わせてスケールを調整
+          bg.scaleX = core.width / bgImage.width;
+          bg.scaleY = core.height / bgImage.height;
         scene.addChild(bg);
-
+        
         //キャラクター
-        const chara = new CharSprite('dwfFighter', { baseDir:'./assets/chara/standing', width:512, height:768, fit:true });
-        chara.x = core.width/2-chara.width/2; chara.y = 0;
+        const chara = new CharSprite('eliza', { baseDir:'./assets/chara/standing', width:512, height:768, fit:true });
+        chara.x = 0; chara.y = 0;
         scene.addChild(chara);
 
-        
-        // 2) UIButton の利用（画像なし＝CSSテーマボタン）
-        const btn1 = new UIButton(160, 40, { text: 'PRESS TO START', textAlign: 'center', maxFontSize: 20 });
-        btn1.x = 60; btn1.y = 440;
-        btn1.ontouchend = () => { 
-          console.log('OK clicked');
-          showSubject();
-          //btn1.setText('クリックしてね');
-        };
-        scene.addChild(btn1);
-        //btn1.label.backgroundColor = 'rgba(255,255,255,.5)';
+        const chara2 = new CharSprite('lucas', { baseDir:'./assets/chara/standing', width:512, height:768, fit:true });
+        chara2.x = core.width-chara2.width; chara2.y = -30;
+        scene.addChild(chara2);
+
+        //FrameWindow
+        const win = new FrameWindow(680, 180, 'darkGlass');   // プリセット: 'panel' | 'dark' | 'glass' | 'accent'
+        win.x = core.width-680-20; win.y = core.height-180-20;
+        win.padding = { top:16, right:16, bottom:16, left:16 };
+        scene.addChild(win);
 
         // LabelArea
         const la = new LabelArea(620, 140, {
-          font: '700 28px "Zen Maru Gothic", system-ui, sans-serif',
-          fontSize: 16,      // 明示指定もOK（fontにpxが含まれていれば省略可）
+          font: '700 32px "Zen Maru Gothic", system-ui, sans-serif',
+          fontSize: 24,      // 明示指定もOK（fontにpxが含まれていれば省略可）
+          color: '#fff',
           speed: 1,          // 2フレームごとに1文字
           text:
-            'これは [b]複数行[/b] のテキスト表示と [u]タイプライタ[/u] のサンプルです。\n' +
-            '「禁則処理」により、行頭に句読点が来ないように「簡易調整します」。' +
-            '長い文章も自動で改行されます。'+
-            'これは [b]複数行[/b] のテキスト表示と [u]タイプライタ[/u] のサンプルです。「禁則処理」により、行頭に句読点が来ないように簡易調整します。長い文章も自動で改行されます。'
+            'ことわざQUIZへようこそ！\n' +
+            'ことわざに関する4択クイズで楽しく言葉を学ぼう！'
         });
-        la.x = 320; la.y = 340;
+        la.x = core.width-620-50; la.y = core.height-140-50;
         scene.addChild(la);
 
         la.play(); // タイプ開始（speed>0の時だけ有効）
 
-        
-        const label = new Label('HELLO ENCHANT_DOM.JS');
+        //Title
+        const label = new Label('エリザ＆ルーカス ことわざQUIZ');
         label.color = '#fff';
-        label.font = 'bold 32px system-ui';
+        label.font = 'bold 48px "Zen Maru Gothic", system-ui, sans-serif';
         label.backgroundColor = 'rgba(0,0,0,0.5)';
         label.width = core.width;
-        label.height = 32*1.2;
+        label.height = 48*1.5;
         label.x = 0;
-        label.y = 180;
+        label.y = core.height/2;
         label.textAlign = 'center';
         scene.addChild(label);
 
-        
+        // UIButton の利用（画像なし＝CSSテーマボタン）
+        const btn1 = new UIButton(160, 40, { text: 'クリックしてスタート', textAlign: 'center', maxFontSize: 20 });
+        btn1.x = 60; btn1.y = 440;
+        btn1.ontouchend = () => { 
+          showSubject();
+          //btn1.setText('クリックしてね');
+        };
+        scene.addChild(btn1);
 
-        scene.on('touchend', () => {
-            console.log('touchend');
-            //showSubject();
-
-          // LoadingSceneを使った追加ロード
-        //   core.replaceScene(new LoadingScene({
-        //     files: [
-        //       './image/chara2.png',
-        //       './image/chara5.png',
-        //       './assets/bg/bg_forest_elf.png',
-        //       './assets/bg/bg_dangeon01.png',
-        //       './assets/bg/bg_dangeon02.png',
-        //       './assets/bg/bg_forestMakai.png',
-        //       './assets/chara/chara_elfRanger_default.png',
-        //       './assets/chara/chara_elfRanger_smile.png',
-        //       './assets/chara/chara_humKnight_default.png',
-        //       './assets/chara/chara_behimos_default.png',
-        //     ],
-        //     next: createGameScene, // 文字列 or (core)=>Scene or Scene
-        //     label: 'Now Loading...',
-        //     barWidth: 320,
-        //     barColor: '#76FF03'
-        //   }));
-          // core.replaceScene(createGameScene());
-        });
         return scene;
       };
 
@@ -169,11 +148,11 @@
             core.replaceScene(new MenuScene({
             key: 'subject',
             title: 'ジャンル選択',
-            description: 'あそびたいジャンルをひとつえらんでね。',
+            description: 'あそびたいジャンルをえらんでください',
             uiPreset: 'dark',
             frameOverlay: sharedOverlay,
             selectorType: 'grid',
-            statusbar: { type: 'gauge', progress: 0.33, label: '1 / 3' },
+            //statusbar: { type: 'gauge', progress: 0.33, label: '1 / 3' },
             options: [
                 { value: 'jp', label: '国語' },
                 { value: 'math', label: '算数' },
@@ -195,7 +174,7 @@
             uiPreset: 'dark',
             frameOverlay: sharedOverlay,
             selectorType: 'list',
-            statusbar: { type: 'gauge', progress: 0.66, label: '2 / 3' },
+            // statusbar: { type: 'gauge', progress: 0.66, label: '2 / 3' },
             deps: { subject: result.subject },
             options: getUnits(result.subject).map(u => ({ value: u.id, label: u.name, note: u.summary })),
             onComplete: ({ key, value }) => { result[key] = value; showQuestionCount(); },
@@ -218,8 +197,6 @@
                 // 次のシーンへ差し替え…
                 core.replaceScene(new LoadingScene({
                   files: [
-                    './image/chara2.png',
-                    './image/chara5.png',
                     './assets/bg/bg_forest_elf.png',
                     './assets/bg/bg_dangeon01.png',
                     './assets/bg/bg_dangeon02.png',
@@ -255,7 +232,7 @@
         bg.scaleY = 0.67;
         scene.addChild(bg);
 
-        const chara = new CharSprite('behimos', { baseDir:'./assets/chara', width:512, height:768, fit:true });
+        const chara = new CharSprite('behimos', { baseDir:'./assets/chara/standing', width:512, height:768, fit:true });
         chara.x = core.width/2-chara.width/2; chara.y = 0;
         scene.addChild(chara);
         chara.body.ontouchend = (e) => {
@@ -263,9 +240,10 @@
         };
 
         const player = new Sprite(32, 32);
-        player.image = core.assets['./image/chara1.png'];
-        player.x = 130;
-        player.y = 15//200;
+        // player.image = core.assets['./image/chara1.png'];
+        player.backgroundColor = '#555';
+        player.x = 30;
+        player.y = 50;
       //player.moveTo(136, 200);
     //   player.frames = [[0,0],[1,0],[2,0],[0,0],[1,0],[2,0],[0,1],[1,1],[2,1],[0,1],[1,1],[2,1],[0,2],[1,2],[2,2],[0,2],[1,2],[2,2]];
     //   let t = 0;
@@ -301,9 +279,10 @@
       };
 
       const enemy = new Sprite(32, 32);
-      enemy.image = core.assets['./image/chara2.png'];
-      enemy.x = 180;
-      enemy.y = 15;
+      // enemy.image = core.assets['./image/chara2.png'];
+      enemy.backgroundColor = '#555';
+      enemy.x = 30;
+      enemy.y = 100;
       scene.addChild(enemy);
       enemy.ontouchend = () => {
         chara.showEmotion('💡', { anim:'pop' });
@@ -314,9 +293,10 @@
       };
 
       const enemy2 = new Sprite(32, 32);
-      enemy2.image = core.assets['./image/chara5.png'];
-      enemy2.x = 230;
-      enemy2.y = 15;
+      // enemy2.image = core.assets['./image/chara5.png'];
+      enemy2.backgroundColor = '#555';
+      enemy2.x = 30;
+      enemy2.y = 150;
       scene.addChild(enemy2);
 
       enemy2.ontouchend = () => {

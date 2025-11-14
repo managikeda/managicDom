@@ -47,6 +47,14 @@ export class FrameWindow extends Group {
         background: 'rgba(255,255,255,.12)', border: '1px solid rgba(255,255,255,.25)',
         radius: 12, backdropFilter: 'blur(6px)', shadow: '0 6px 18px rgba(0,0,0,.35)'
       },
+      whiteGlass: {
+        background: 'rgba(255,255,255,.4)', border: '1px solid rgba(255,255,255,.25)',
+        radius: 12, backdropFilter: 'blur(6px)', shadow: '0 6px 18px rgba(0,0,0,.35)'
+      },
+      darkGlass: {
+        background: 'rgba(0,0,0,.5)', border: '1px solid rgba(255,255,255,.25)',
+        radius: 12, backdropFilter: 'blur(6px)', shadow: '0 6px 18px rgba(0,0,0,.35)'
+      },
       accent: {
         background: '#fff7e6', border: '2px solid #ffb300',
         radius: 12, shadow: '0 4px 14px rgba(255,179,0,.25)'
@@ -1031,20 +1039,10 @@ export class CharSprite extends Group {
   }
 
   _applyFit() {
-    console.log("applyFit")
-    console.log(this._w)
-    console.log(this.width)
-    console.log(this.body.width)
-    console.log(this._h)
-    console.log(this.height)
-    console.log(this.body.height)
     // ターゲット枠（CharSprite の外寸）
     const targetW = (this._w || this.width || this.body.width || 0)|0;
     const targetH = (this._h || this.height || this.body.height || 0)|0;
     if (!targetW || !targetH) return;
-
-    console.log("targetW", targetW)
-    console.log("targetH", targetH)
 
     // フレームサイズを確定
     this.width  = targetW;
@@ -1077,18 +1075,19 @@ export class CharSprite extends Group {
     const sy = targetH / natH;
     const s  = Math.min(1, sx, sy);
     //??s=0.5ならシュリンクして0.5だとしないのはなぜ？
-    if(s < 1){
-      this.body._shrink = s;
-    }
+    // if(s < 1){
+    //   this.body._shrink = s;
+    // }
+    this.body._shrink = s < 1 ? s : 1;
     this.body.scaleX = this.body.scaleY = s;
 
-    console.log("sx", sx)
-    console.log("sy", sy)
-    console.log("s", s)
-
     // （3）中央寄せ（中心基準の式に修正）
-    this.body.x = -(Math.round((natW * s) / 2));
-    this.body.y = -(Math.round((natH * s) / 2));
+    // this.body.x = -(Math.round((natW * s) / 2));
+    // this.body.y = -(Math.round((natH * s) / 2));
+    const offsetX = Math.round((targetW - natW) / 2);
+    const offsetY = Math.round((targetH - natH) / 2);
+    this.body.x = offsetX;
+    this.body.y = offsetY;
   }
 }//CharSprite
 
