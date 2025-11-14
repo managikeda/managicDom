@@ -42,6 +42,13 @@ AnimatedCover（選択受付時の演出など）
 
 
 
+・四択問題表示
+SelectionPanel(Group)
+- FrameWindow
+- LabelArea
+- UIButton
+
+
 
 ＜追加したい機能＞
 ・Labelのfontプロパティ関連

@@ -8,7 +8,7 @@
 <body>
   <div id="managic-stage"></div>
   <script type="module">
-    import { Core, Scene, Sprite, Label, loadGoogleFont, TileMap, Rect, Circle } from '../managic_dom.js';
+    import { Core, Scene, Group, Sprite, Label, loadGoogleFont, TileMap, Rect, Circle } from '../managic_dom.js';
     import { FrameWindow, CharSprite, UIButton, LabelArea, StatusBar, FrameOverlay, AnimatedCover, Particle, LoadingScene, MenuScene } from '../managic_ui.js';
 
     // --- google fontをプリロード ---
@@ -92,11 +92,11 @@
         //キャラクター
         const chara = new CharSprite('eliza', { baseDir:'./assets/chara/standing', width:512, height:768, fit:true });
         chara.x = 0; chara.y = 0;
-        scene.addChild(chara);
+        // scene.addChild(chara);
 
         const chara2 = new CharSprite('lucas', { baseDir:'./assets/chara/standing', width:512, height:768, fit:true });
         chara2.x = core.width-chara2.width; chara2.y = -30;
-        scene.addChild(chara2);
+        // scene.addChild(chara2);
 
         //FrameWindow
         const win = new FrameWindow(680, 180, 'darkGlass');   // プリセット: 'panel' | 'dark' | 'glass' | 'accent'
@@ -120,7 +120,7 @@
         la.play(); // タイプ開始（speed>0の時だけ有効）
 
         //Title
-        const label = new Label('エリザ＆ルーカス ことわざQUIZ');
+        const label = new Label('KOTOWAZA QUIZ');
         label.color = '#fff';
         label.font = 'bold 48px "Zen Maru Gothic", system-ui, sans-serif';
         label.backgroundColor = 'rgba(0,0,0,0.5)';
@@ -139,6 +139,33 @@
           //btn1.setText('クリックしてね');
         };
         scene.addChild(btn1);
+
+        //四択問題window
+        class Selection4Panel extends Group {
+            constructor(width, height) {
+                super();
+                this._panel = new FrameWindow(width, height, 'darkGlass');
+                this.addChild(this._panel);
+
+                this.selections = [];
+                for(let i=0; i<4; i++) {
+                    const btn = new UIButton(width/2, height/2, { text: '選択肢' + i });
+                    btn.x = i % 2 * width/2 + (i%2==0?-10:10);
+                    btn.y = Math.floor(i / 2) * height/2;
+                    this.addChild(btn);
+                    this.selections.push(btn);
+                }
+            }
+            putSelectionTexts(texts){
+                for(let i=0; i<4; i++) {
+                    this.selections[i].setText(texts[i]);
+                }
+            }
+        }
+
+        const selection4Panel = new Selection4Panel(620, 140);
+        selection4Panel.x = core.width-620-50; selection4Panel.y = core.height-140-50;
+        scene.addChild(selection4Panel);
 
         return scene;
       };
