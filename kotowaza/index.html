@@ -133,14 +133,14 @@
 
         // UIButton の利用（画像なし＝CSSテーマボタン）
         const btn1 = new UIButton(160, 40, { text: 'クリックしてスタート', textAlign: 'center', maxFontSize: 20 });
-        btn1.x = 60; btn1.y = 440;
+        btn1.x = 60; btn1.y = 80//440;
         btn1.ontouchend = () => { 
           showSubject();
           //btn1.setText('クリックしてね');
         };
         scene.addChild(btn1);
 
-        //四択問題window
+        //四択問題パネル
         class Selection4Panel extends Group {
             constructor(width, height) {
                 super();
@@ -152,23 +152,132 @@
                     const btn = new UIButton(width/2, height/2, { text: '選択肢' + i });
                     btn.x = i % 2 * width/2 + (i%2==0?-10:10);
                     btn.y = Math.floor(i / 2) * height/2;
+                    //ボタンが押されたらonSelectを呼び出す
+                    btn.ontouchend = () => {
+                        this.onSelect(i, btn.label.text);
+                    };
                     this.addChild(btn);
                     this.selections.push(btn);
                 }
             }
+            //選択肢を表示する
             putSelectionTexts(texts){
                 for(let i=0; i<4; i++) {
                     this.selections[i].setText(texts[i]);
                 }
             }
-        }
+            //押されたボタンを受け取って、その番号とtxtを返す
+            onSelect(i,text){
+                console.log(i,text);
+            }
+        }//Selection4Panel
 
         const selection4Panel = new Selection4Panel(620, 140);
         selection4Panel.x = core.width-620-50; selection4Panel.y = core.height-140-50;
         scene.addChild(selection4Panel);
 
+        selection4Panel.putSelectionTexts([
+            'アメリカ',
+            'イギリス',
+            'フランス',
+            'ドイツ'
+        ]);
+
+        //問題表示エリア
+        const questionArea = new LabelArea(620, 140, {
+          font: '700 32px "Zen Maru Gothic", system-ui, sans-serif',
+          fontSize: 24,      // 明示指定もOK（fontにpxが含まれていれば省略可）
+          color: '#fff',
+          speed: 1,          // 2フレームごとに1文字
+          text:
+            'ことわざQUIZへようこそ！\n' +
+            'ことわざに関する4択クイズで楽しく言葉を学ぼう！'
+        });
+        questionArea.x = core.width/2-620/2; questionArea.y = 200;
+        scene.addChild(questionArea);
+
+        //ことわざクイズサンプル問題
+        const sampleQuestions = [
+          {
+            question: '能ある鷹は〇を隠す',
+            choices: ['爪', '翼', '尾', '脚'],
+            answer: '爪'
+          },
+          {
+            question: '〇が鷹を生む',
+            choices: ['鳶', '鷹', '雀', '燕'],
+            answer: '鳶'
+          },
+          {
+            question: '泣き面に〇',
+            choices: ['蜂', '蝶', '蚊', '蝶'],
+            answer: '蜂'
+          },
+          {
+            question: '犬も歩けば棒に当たる',
+            choices: ['犬', '馬', '牛', '羊'],
+            answer: '犬'
+          },
+          {
+            question: '仏の顔も〇度',
+            choices: ['三', '二', '一', '零'],
+            answer: '三'
+          }
+        ];
+
+        //クイズコントローラー
+        class QuizController extends Sprite {
+          constructor(width, height) {
+              super(width, height);
+              this.questionArea = questionArea;
+              this.selection4Panel = selection4Panel;
+              this.questionData = [];
+              this.currentQuestionIndex = 0;
+
+              this.selection4Panel.onSelect = (index, answer) => {
+                this.checkAnswer(answer);
+              };
+          }
+          setQuestionData(data){
+            this.questionData = data;
+          }
+          shuffleQuestions(){
+            this.questionData.sort(() => Math.random() - 0.5);
+          }
+          setNextQuestion(){
+            if(this.currentQuestionIndex >= this.questionData.length){
+              return;
+            }
+            const question = this.questionData[this.currentQuestionIndex];
+            this.questionArea.setText(question.question);
+            this.selection4Panel.putSelectionTexts(question.choices);
+          }
+          checkAnswer(answer){
+            console.log(answer);
+            //answerとquestionData[currentQuestionIndex].answerを比較
+            if(answer === this.questionData[this.currentQuestionIndex].answer){
+              console.log('正解');
+            }else{
+              console.log('不正解');
+            }
+            //tlを使って1秒後に次の問題を表示
+            this.tl.delay(30).then(()=>{
+              this.currentQuestionIndex++;
+              this.setNextQuestion();
+            });
+          }
+        }//QuizController
+
+        const quizController = new QuizController(0, 0);
+        scene.addChild(quizController);
+
+        quizController.setQuestionData(sampleQuestions);
+        quizController.shuffleQuestions();
+        quizController.setNextQuestion();
+        
+
         return scene;
-      };
+      };//createTitleScene
 
 
         function showSubject(){
