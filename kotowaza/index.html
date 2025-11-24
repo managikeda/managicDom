@@ -151,7 +151,7 @@
                 for(let i=0; i<4; i++) {
                     const btn = new UIButton(width/2, height/2, { text: '選択肢' + i });
                     btn.x = i % 2 * width/2 + (i%2==0?-10:10);
-                    btn.y = Math.floor(i / 2) * height/2;
+                    btn.y = Math.floor(i / 2) * height/2 + (i>1?10:0);
                     //ボタンが押されたらonSelectを呼び出す
                     btn.ontouchend = () => {
                         this.onSelect(i, btn.label.text);
@@ -172,8 +172,8 @@
             }
         }//Selection4Panel
 
-        const selection4Panel = new Selection4Panel(620, 140);
-        selection4Panel.x = core.width-620-50; selection4Panel.y = core.height-140-50;
+        const selection4Panel = new Selection4Panel(840, 140);
+        selection4Panel.x = core.width/2-840/2; selection4Panel.y = core.height-140-50;
         scene.addChild(selection4Panel);
 
         selection4Panel.putSelectionTexts([
