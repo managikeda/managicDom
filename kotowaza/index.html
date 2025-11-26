@@ -150,7 +150,7 @@
                 this.selections = [];
                 this.btns = [];
                 for(let i=0; i<4; i++) {
-                    const btn = new UIButton(width/2, height/2, { text: '選択肢' + i });
+                    const btn = new UIButton(width/2, height/2, { text: '選択肢' + i,maxFontSize: 48 });
                     btn.x = i % 2 * width/2 + (i%2==0?-10:10);
                     btn.y = Math.floor(i / 2) * height/2 + (i>1?10:0);
                     //ボタンが押されたらonSelectを呼び出す
@@ -163,6 +163,7 @@
                     btn.icon = new Label('⭕');
                     btn.icon.x = 0;
                     btn.icon.y = 0;
+                    btn.icon.fontSize = 48;
                     btn.icon.visible = false;
                     btn.icon.setIcon = (char,msec) => {
                       //charで受け取った文字をmsec秒だけ表示する
@@ -236,7 +237,7 @@
             answer: '蜂'
           },
           {
-            question: '犬も歩けば棒に当たる',
+            question: '●も歩けば棒に当たる',
             choices: ['犬', '馬', '牛', '羊'],
             answer: '犬'
           },
@@ -244,6 +245,11 @@
             question: '仏の顔も〇度',
             choices: ['三', '二', '一', '零'],
             answer: '三'
+          },
+          {
+            question: '犬も歩けば棒に当たる',
+            choices: ['行動してみると思いがけない良いことや悪いことがある', '悪いことに悪いことが重なる', '平凡な親からすぐれた子が生まれる', 'すぐれた人は能力を見せびらかさない'],
+            answer: '行動してみると思いがけない良いことや悪いことがある'
           }
         ];
 
@@ -276,9 +282,10 @@
           }
           checkAnswer(answer){
             console.log(answer);
-            this.selection4Panel.showResult(answer);
+            const correctAnswer = this.questionData[this.currentQuestionIndex].answer;
+            this.selection4Panel.showResult(correctAnswer);//ボタン上に正誤を表示
             //answerとquestionData[currentQuestionIndex].answerを比較
-            if(answer === this.questionData[this.currentQuestionIndex].answer){
+            if(answer === correctAnswer){
               console.log('正解');
             }else{
               console.log('不正解');

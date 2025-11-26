@@ -238,8 +238,8 @@ export class UIButton extends Group {
     this._fitTextToWidth(innerW);
     // 3) 中央寄せ
     this.label.x = Math.round((this._w - this.label.textWidth)/2);
-    //this.label.y = Math.round((this._h - this.label.height)/2);
-    this.label.y = Math.floor(this._h/2 - this.label.height*this.label.lineHeight/2);
+    //this.label.y = Math.floor(this._h/2 - this.label.height*this.label.lineHeight/2);
+    this.label.y = Math.round(this._h/2-(this.label.fontSize*(this.label.lineHeight*2-1))/2);
   }
 
   _applyState(state){
