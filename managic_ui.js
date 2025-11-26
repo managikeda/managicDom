@@ -872,7 +872,7 @@ export class CharSprite extends Group {
       lb.fitToTextWidth = true;
       this._emo = lb;
     }
-    // アイコン 💢🩷💡💔💕✨🔥💧🩸💀😡😠🤢💰🍖🍔🌐❄🎃👻🎄🎁🎖️🔊🔇🔔
+    // アイコン ⭕❌💢🩷💡💔💕✨🔥💧🩸💀😡😠🤢💰🍖🍔🌐❄🎃👻🎄🎁🎖️🔊🔇🔔💯🤩
     this.addChild(this._emo);
     // const fw = this.width  || this._w || 0;
     // const fh = this.height || this._h || 0;

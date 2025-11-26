@@ -148,6 +148,7 @@
                 this.addChild(this._panel);
 
                 this.selections = [];
+                this.btns = [];
                 for(let i=0; i<4; i++) {
                     const btn = new UIButton(width/2, height/2, { text: '選択肢' + i });
                     btn.x = i % 2 * width/2 + (i%2==0?-10:10);
@@ -158,30 +159,51 @@
                     };
                     this.addChild(btn);
                     this.selections.push(btn);
+                    //ボタン上にアイコンラベルを設置
+                    btn.icon = new Label('⭕');
+                    btn.icon.x = 0;
+                    btn.icon.y = 0;
+                    btn.icon.visible = false;
+                    btn.icon.setIcon = (char,msec) => {
+                      //charで受け取った文字をmsec秒だけ表示する
+                      if(!msec){msec=1000;}
+                      btn.icon.text = char;
+                      btn.icon.visible = true;
+                      setTimeout(() => {
+                        btn.icon.visible = false;
+                      }, msec);
+                    }
+                    btn.addChild(btn.icon);
+                    this.btns.push(btn);
                 }
             }
             //選択肢を表示する
             putSelectionTexts(texts){
+                //textsをシャッフル
+                texts.sort(() => Math.random() - 0.5);
                 for(let i=0; i<4; i++) {
                     this.selections[i].setText(texts[i]);
                 }
             }
-            //押されたボタンを受け取って、その番号とtxtを返す
+            //onSelect(内容はQuizControllerによって書き換えられるのが原則)
             onSelect(i,text){
                 console.log(i,text);
+            }
+            //正誤結果の表示（ansとbtn.label.textが一致するかで判断）
+            showResult(ans){
+                for(let i=0; i<4; i++) {
+                    if(this.btns[i].label.text == ans) {
+                        this.btns[i].icon.setIcon('✅',1000);
+                    } else {
+                        this.btns[i].icon.setIcon('❌',1000);
+                    }
+                }
             }
         }//Selection4Panel
 
         const selection4Panel = new Selection4Panel(840, 140);
         selection4Panel.x = core.width/2-840/2; selection4Panel.y = core.height-140-50;
         scene.addChild(selection4Panel);
-
-        selection4Panel.putSelectionTexts([
-            'アメリカ',
-            'イギリス',
-            'フランス',
-            'ドイツ'
-        ]);
 
         //問題表示エリア
         const questionArea = new LabelArea(620, 140, {
@@ -210,7 +232,7 @@
           },
           {
             question: '泣き面に〇',
-            choices: ['蜂', '蝶', '蚊', '蝶'],
+            choices: ['蜂', '蝶', '蚊', '蛙'],
             answer: '蜂'
           },
           {
@@ -254,6 +276,7 @@
           }
           checkAnswer(answer){
             console.log(answer);
+            this.selection4Panel.showResult(answer);
             //answerとquestionData[currentQuestionIndex].answerを比較
             if(answer === this.questionData[this.currentQuestionIndex].answer){
               console.log('正解');
